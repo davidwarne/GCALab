@@ -1,0 +1,55 @@
++=====================================================================+
+||                 Graph Cellular Automata Lab                       ||
++=====================================================================+
+
+Description:
+------------
+	GCALab is an analysis tool for the exploration of the dynamics of 
+cellular automata defined on graphs.
+
+Installation:
+-------------
+	Linux:
+	- easy for linux users just run make
+
+		$ make
+
+	Windows:
+	- c'mon, just install linux
+
+
+Files:
+------
+	GCA/
+		GCALab/
+		libGCA/
+		libMesh/
+
+Known Issues:
+------------
+
+Author Information:
+-------------------
+	Name - David J. Warne
+	Email - david.warne@qut.edu.au
+	Uni - The Queensland University of Technology, Brisbane, Australia
+	School - The School of Electrical Engineering and Computer Science
+
+Acknowledgements:
+-----------------
+
+I special thanks to my primary supervisor Dr. Ross Hayward for many 
+invaluable coffee discussions relating to this work. 
+
+Thanks to my secondary and tertiary supervisors, Dr. Neil Kelson and 
+A/Prof. Dann Mallet, for review of most of my written work.
+
+A very special thanks to my wife, Sarah, for putting up with me during
+this project, and listening to all my rants (or at least smiling and 
+nodding).
+
+
+
+
+
+
