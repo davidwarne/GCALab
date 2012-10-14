@@ -56,6 +56,16 @@
  *                            ii. Implemented lambda_param() and InputEntropy().
  *
  *       v 0.11 (2/09/2012) - i. Implemented G_density() and Z_param().
+ *       
+ *       v 0.12 (14/10/2012) - i. separated RevAlgIter() from the GetFlags() function
+ *                             ii. worked on a solution to Known Issue 5, the idea
+ *                                 is based on the fact that nhoods that cause in-
+ *                                 consistencies are eliminated in one iteration of
+ *                                 RevAlgIter() if they are assumed. This helps the 
+ *                                 entire algorithm to converge such that 
+ *                                 rowOfZeros <=> GOE. Considering this issue resolved.
+ *                             iii. I have been considering names for my rev algorithm
+ *                                  , maybe neighbourhood elimination?
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -86,7 +96,7 @@
  *     5. I've managed to prove by counter-example (sadly) that my GOE test condition (
  *        column of zeros) is a sufficient but not necessary condition for the existence.
  *        That is colOfzeros => GOE not colOfzeros <=> GOE... working on a further condition
- *        such that colOfzeros ^ q <=> GOE.
+ *        such that colOfzeros ^ q <=> GOE. - fixed (v 0.12)
  * =============================================================================
  */
 
@@ -931,22 +941,207 @@ chunk *CAGetPreImages(GraphCellularAutomaton *GCA,unsigned int* n,unsigned char*
 	return preImages;
 }
 
+unsigned char RevAlgIter(GraphCellularAutomaton *GCA,unsigned char *flags,state *theta_i,state *theta_j,unsigned int startcell)
+{
+	unsigned char r;
+	state *W_i,*W_j;
+	unsigned int i,j,ii,jj;
+	unsigned int q,p,pp;
+	unsigned int sum,prev_sum;
+	unsigned int *U_i,*U_j;
+	unsigned int state_mask,mask_i,mask_j,mask_ii,mask_jj;
+	
+	state_mask = (0x1 << (GCA->log2s)) - 1;
+	r = GCA->log2s*(GCA->params->k-1)/2;
+	/*for every connection*/
+	for (i=startcell+1;i<GCA->params->N;i++)
+	{
+
+		U_i = GetNeighbourhood(GCA,i);
+		for (j=0;j<(GCA->params->k-1);j++)
+		{
+			U_j = GetNeighbourhood(GCA,U_i[j]);
+			/*get the neighbour number for each cell in the other neighbourhood*/
+			ii = 0;
+			while (U_j[ii] != i) ii++;
+			jj = 0;
+			while (U_i[jj] != U_i[j]) jj++;
+			ii = (ii >= (GCA->params->k-1)/2) ? ii+1 : ii;
+			jj = (jj >= (GCA->params->k-1)/2) ? jj+1 : jj;
+			/*create masks for selecting respective Pre-neighbourhood states*/
+			mask_i = (state_mask << r); 
+			mask_jj = (state_mask << GCA->log2s*jj);
+			mask_j = (state_mask << r); 
+			mask_ii = (state_mask << GCA->log2s*ii);
+				
+			/*create list for sub-configs for match test*/
+			memset((void*)theta_i,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			for (q=0;q<GCA->LUT_size;q++)
+			{
+				/*p = state i : state j*/
+				if( flags[i*(GCA->LUT_size) + q])
+				{
+					p = (((q & mask_i) >> r) << GCA->log2s);
+					p |= ((q & mask_jj) >> GCA->log2s*jj); 
+					/*only set if this still a possible pre-neighbourhood*/
+					theta_i[p] = 1;
+				}
+			}
+				
+			memset((void*)theta_j,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			for (q=0;q<GCA->LUT_size;q++)
+			{
+				/*p = state i : state j*/						
+				if (flags[U_i[j]*(GCA->LUT_size) + q])
+				{
+					p = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
+					p |= ((q & mask_j) >> r); 
+					/*only set if this still a possible pre-neighbourhood*/
+					theta_j[p] = 1;
+				}
+			}
+				
+			/* if theta_i not in theta_j then matching Pre-neighbourhoods 
+			 * cannot contribute Pre-Image around cell_i, likewise for 
+			 * theta_j not in theta_i 
+			 * TODO: could repace theta_i and theta_j with bit strings
+			 */
+			for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
+			{
+			 	if (theta_i[p] && !theta_j[p])
+			 	{
+			 		/*remove invalid pre-neighbourhoods for cell_i*/
+			 		for (q=0;q<GCA->LUT_size;q++)
+					{
+						if (flags[i*(GCA->LUT_size) + q])
+						{
+							pp = (((q & mask_i) >> r) << GCA->log2s);
+							pp |= ((q & mask_jj) >> GCA->log2s*jj); 
+							flags[i*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[i*(GCA->LUT_size) + q];
+						}
+					}				
+			 	}
+			 	else if (!theta_i[p] && theta_j[p])
+			 	{
+			 		/*remove invalid pre-neighbourhoods for cell_j*/
+			 		for (q=0;q<GCA->LUT_size;q++)
+					{
+						if (flags[U_i[j]*(GCA->LUT_size) + q])
+						{
+							pp = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
+							pp |= ((q & mask_j) >> r); 
+							flags[U_i[j]*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[U_i[j]*(GCA->LUT_size) + q];
+						}
+					}
+			 	}
+			}
+		}/*end for link i,j*/
+	}/*end for cell_i*/
+	for (i=0;i<startcell+1;i++)
+	{
+
+		U_i = GetNeighbourhood(GCA,i);
+		for (j=0;j<(GCA->params->k-1);j++)
+		{
+			U_j = GetNeighbourhood(GCA,U_i[j]);
+			/*get the neighbour number for each cell in the other neighbourhood*/
+			ii = 0;
+			while (U_j[ii] != i) ii++;
+			jj = 0;
+			while (U_i[jj] != U_i[j]) jj++;
+			ii = (ii >= (GCA->params->k-1)/2) ? ii+1 : ii;
+			jj = (jj >= (GCA->params->k-1)/2) ? jj+1 : jj;
+			/*create masks for selecting respective Pre-neighbourhood states*/
+			mask_i = (state_mask << r); 
+			mask_jj = (state_mask << GCA->log2s*jj);
+			mask_j = (state_mask << r); 
+			mask_ii = (state_mask << GCA->log2s*ii);
+				
+			/*create list for sub-configs for match test*/
+			memset((void*)theta_i,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			for (q=0;q<GCA->LUT_size;q++)
+			{
+				/*p = state i : state j*/
+				if( flags[i*(GCA->LUT_size) + q])
+				{
+					p = (((q & mask_i) >> r) << GCA->log2s);
+					p |= ((q & mask_jj) >> GCA->log2s*jj); 
+					/*only set if this still a possible pre-neighbourhood*/
+					theta_i[p] = 1;
+				}
+			}
+				
+			memset((void*)theta_j,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			for (q=0;q<GCA->LUT_size;q++)
+			{
+				/*p = state i : state j*/						
+				if (flags[U_i[j]*(GCA->LUT_size) + q])
+				{
+					p = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
+					p |= ((q & mask_j) >> r); 
+					/*only set if this still a possible pre-neighbourhood*/
+					theta_j[p] = 1;
+				}
+			}
+				
+			/* if theta_i not in theta_j then matching Pre-neighbourhoods 
+			 * cannot contribute Pre-Image around cell_i, likewise for 
+			 * theta_j not in theta_i 
+			 * TODO: could repace theta_i and theta_j with bit strings
+			 */
+			for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
+			{
+			 	if (theta_i[p] && !theta_j[p])
+			 	{
+			 		/*remove invalid pre-neighbourhoods for cell_i*/
+			 		for (q=0;q<GCA->LUT_size;q++)
+					{
+						if (flags[i*(GCA->LUT_size) + q])
+						{
+							pp = (((q & mask_i) >> r) << GCA->log2s);
+							pp |= ((q & mask_jj) >> GCA->log2s*jj); 
+							flags[i*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[i*(GCA->LUT_size) + q];
+						}
+					}				
+			 	}
+			 	else if (!theta_i[p] && theta_j[p])
+			 	{
+			 		/*remove invalid pre-neighbourhoods for cell_j*/
+			 		for (q=0;q<GCA->LUT_size;q++)
+					{
+						if (flags[U_i[j]*(GCA->LUT_size) + q])
+						{
+							pp = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
+							pp |= ((q & mask_j) >> r); 
+							flags[U_i[j]*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[U_i[j]*(GCA->LUT_size) + q];
+						}
+					}
+			 	}
+			}
+		}/*end for link i,j*/
+	}/*end for cell_i*/
+}
+
 /* GetFlags(): creates an array F in N x s^k where element F(i,j) = 0 means neighbourhood
  *             i cannot occur for cell j in any pre-image.
  */
 unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 {
-	unsigned char exit,*flags,r;
-	state *theta_i,*theta_j,*W_i,*W_j;
-	unsigned int i,j,q,p,pp,sum,prev_sum,*U_i,*U_j,ii,jj;
-	unsigned int mask_i,mask_j,mask_ii,mask_jj;
-	unsigned int state_mask;
+	unsigned char exit,iter,*flags,*tmp_flags;
+	state *theta_i,*theta_j;
+	unsigned int i,j,k,ii,jj;
+	unsigned int sum,prev_sum;
+	unsigned char *counts;
 	if (!(flags = (unsigned char*)malloc((GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char))))
 	{
 		return NULL;
 	}
 	
 	memset((void*)flags,0,(GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char));
+	if (!(tmp_flags = (unsigned char*)malloc((GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char))))
+	{
+		return NULL;
+	}
 	
 	if (!(theta_i = (state*)malloc((GCA->params->s)*(GCA->params->s)*sizeof(state))))
 	{
@@ -958,6 +1153,11 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 		return NULL;
 	}
 	
+	if (!(counts = (unsigned char*)malloc((GCA->params->N)*sizeof(unsigned char))))
+	{
+		return NULL;
+	}
+
 	/*TODO: Implement my algorithm for computing all pre-images at once*/
 	/* So far I can't see why it would not work, could be a paper in it?*/
 	
@@ -973,116 +1173,38 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 	prev_sum = 0;
 	for (i=0;i<GCA->params->N;i++)
 	{
-		prev_sum += flags[i];
+		sum += flags[i];
 	}
 	
-	state_mask = (0x1 << (GCA->log2s)) - 1;
-	r = GCA->log2s*(GCA->params->k-1)/2;
 	exit = 0;
-
 	while (!exit)
 	{
-		/*for every connection*/
-		for (i=0;i<GCA->params->N;i++)
+		iter = 1;
+		while (iter)
 		{
-
-			U_i = GetNeighbourhood(GCA,i);
-			for (j=0;j<(GCA->params->k-1);j++)
+			RevAlgIter(GCA,flags,theta_i,theta_j,0);
+			/*test for convergence*/
+			sum = 0;
+			for (i=0;i<(GCA->params->N)*(GCA->LUT_size);i++)
 			{
-				U_j = GetNeighbourhood(GCA,U_i[j]);
-				/*get the neighbour number for each cell in the other neighbourhood*/
-				ii = 0;
-				while (U_j[ii] != i) ii++;
-				jj = 0;
-				while (U_i[jj] != U_i[j]) jj++;
-				ii = (ii >= (GCA->params->k-1)/2) ? ii+1 : ii;
-				jj = (jj >= (GCA->params->k-1)/2) ? jj+1 : jj;
-				/*create masks for selecting respective Pre-neighbourhood states*/
-				mask_i = (state_mask << r); 
-				mask_jj = (state_mask << GCA->log2s*jj);
-				mask_j = (state_mask << r); 
-				mask_ii = (state_mask << GCA->log2s*ii);
-				
-				/*create list for sub-configs for match test*/
-				memset((void*)theta_i,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
-				for (q=0;q<GCA->LUT_size;q++)
-				{
-					/*p = state i : state j*/
-					if( flags[i*(GCA->LUT_size) + q])
-					{
-						p = (((q & mask_i) >> r) << GCA->log2s);
-						p |= ((q & mask_jj) >> GCA->log2s*jj); 
-						/*only set if this still a possible pre-neighbourhood*/
-						theta_i[p] = 1;
-					}
-				}
-				
-				memset((void*)theta_j,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
-				for (q=0;q<GCA->LUT_size;q++)
-				{
-					/*p = state i : state j*/						
-					if (flags[U_i[j]*(GCA->LUT_size) + q])
-					{
-						p = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
-						p |= ((q & mask_j) >> r); 
-						/*only set if this still a possible pre-neighbourhood*/
-						theta_j[p] = 1;
-					}
-				}
-				
-				/* if theta_i not in theta_j then matching Pre-neighbourhoods 
-				 * cannot contribute Pre-Image around cell_i, likewise for 
-				 * theta_j not in theta_i 
-				 * TODO: could repace theta_i and theta_j with bit strings
-				 */
-				for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
-				{
-				 	if (theta_i[p] && !theta_j[p])
-				 	{
-				 		/*remove invalid pre-neighbourhoods for cell_i*/
-				 		for (q=0;q<GCA->LUT_size;q++)
-						{
-							if (flags[i*(GCA->LUT_size) + q])
-							{
-								pp = (((q & mask_i) >> r) << GCA->log2s);
-								pp |= ((q & mask_jj) >> GCA->log2s*jj); 
-								flags[i*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[i*(GCA->LUT_size) + q];
-							}
-						}				
-				 	}
-				 	else if (!theta_i[p] && theta_j[p])
-				 	{
-				 		/*remove invalid pre-neighbourhoods for cell_j*/
-				 		for (q=0;q<GCA->LUT_size;q++)
-						{
-							if (flags[U_i[j]*(GCA->LUT_size) + q])
-							{
-								pp = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
-								pp |= ((q & mask_j) >> r); 
-								flags[U_i[j]*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[U_i[j]*(GCA->LUT_size) + q];
-							}
-						}
-				 	}
-				}
-			}/*end for link i,j*/
-		}/*end for cell_i*/
+				sum += flags[i];
+			}
 		
-		/*test for convergence*/
-		sum = 0;
-		for (i=0;i<(GCA->params->N)*(GCA->LUT_size);i++)
-		{
-			sum += flags[i];
-		}
-		
-		/*loop invarient: 0 <= sum <= prev_sum*/
-		if (sum == prev_sum || sum == 0)
-		{
+			if (sum == 0)
+			{
+				iter = 0;
+				exit = 1;
+			}
+			/*loop invarient: 0 <= sum <= prev_sum*/
+			if (sum == prev_sum)
+			{
 	
-			exit = 1;
-		}
-		else
-		{
-			prev_sum = sum;
+				iter = 0;
+			}
+			else
+			{
+				prev_sum = sum;
+			}
 		}
 		/*test of Garden-of-eden states*/
 		/*TODO: although colzeros => GOE*/
@@ -1090,33 +1212,88 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 		/*DAMMIT! gotta rethink here...*/
 		for (i=0;i<(GCA->params->N);i++)
 		{
-			sum = 0;
+			counts[i] = 0;
 			for (j=0;j<(GCA->LUT_size);j++)
 			{
-				sum += flags[i*(GCA->LUT_size)+j];
+				counts[i] += flags[i*(GCA->LUT_size)+j];
 			}
-			if (sum == 0)
+		}
+
+		for (i=0;i<(GCA->params->N);i++)
+		{
+			if (counts[i] == 0)
 			{
+				/*then set the entire flags array to zero*/
+				/*this is definitely a GOE*/
 				for (j=0;j<(GCA->params->N)*(GCA->LUT_size);j++)
 				{
-					flags[j]=0;
+					flags[j] = 0;
 				}
 				exit = 1;	
 			}
+			
+		}
+		/*if we are still uncertain we must further analyse*/
+		if(!exit)
+		{
+			unsigned char invalid;
+			invalid = 0;
+			memcpy(tmp_flags,flags,(GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char));
+				
+			/*for each possible n-hood, run a single test iteration*/
+			for (i=0;i<(GCA->params->N);i++)
+			{
+				for (j=0;j<GCA->LUT_size;j++)
+				{
+					if( tmp_flags[i*(GCA->LUT_size)+j] != 0)
+					{
+						/*consider this nhood as fixed*/
+						for (k=0;k<j;k++)
+						{
+							tmp_flags[i*(GCA->LUT_size)+k] = 0;
+						}
+						for (k=j+1;k<(GCA->LUT_size);k++)
+						{
+							tmp_flags[i*(GCA->LUT_size)+k] = 0;
+						}
+						/*run an iteration*/
+						RevAlgIter(GCA,tmp_flags,theta_i,theta_j,i);
+
+						/*did it get eliminated*/
+						if(tmp_flags[i*(GCA->LUT_size)+j] == 0)
+						{
+							flags[i*(GCA->LUT_size)+j] = 0;
+							invalid = 1;
+						}
+						else
+						{
+							memcpy(tmp_flags,flags,(GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char));
+						}
+					}
+
+					if (invalid)
+					{
+						break;
+					}
+				}
+
+				if(invalid)
+				{
+					break;
+				}
+			}
+			/*if we get here and we are still valid then we exit*/
+			exit = !invalid;
 		}
 	}
-	/*TODO: after flags has converged, test each set bit*/
-	/*possible fix:*/
-	/*1. find column with least set bits*/
-	/*2. for every set bit*/
-	/*2.1 trace connections around to from this n-hood excluding loop-backs to this col*/
-	/*2.3 if a loop-back is remaining then not GOE otherwise no circuit in this col*/
+	
 	free(theta_i);
 	free(theta_j);
+	free(tmp_flags);
+	free(counts);
 	/*flags along with the center state of LUT indexes encodes all possible
 	 * pre-images for the current configurations
 	 */
-	
 	return flags;
 };
 
