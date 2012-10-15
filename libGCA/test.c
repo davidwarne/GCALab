@@ -101,7 +101,7 @@ void testRevAlgorithm(int argc,char **argv)
 	ECA = CreateECA(N,k,rule);
 	
 	printf("%u %u %u %hhu %hhu %hhu\n",ECA->params->N,ECA->params->WSIZE,ECA->params->rule,ECA->params->s,ECA->params->rule_type,ECA->params->k);
-	ECA->config[0] = 0x0003;
+	ECA->config[0] = (chunk)atoi(argv[4]);
 	for (j=0;j<ECA->params->N;j++)
 	{
 		printf("%u",GetCellStatePacked(ECA,j,0));

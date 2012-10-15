@@ -19,6 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*for threading*/
+#include <pthread.h>
+
 /*custom headers*/ 
 #include "mesh.h"
 #include "GCA.h"
@@ -27,28 +30,45 @@
 #define GCALAB_VERSION 0.4
 
 /*this error code should be consistent with the error codes in mesh.h*/
-#define GCALAB_SUCCESS 127
+#define GCALAB_SUCCESS 			127
 #define GCALAB_MEM_ERROR OUT_OF_MEMORY
-#define GCALAB_FATAL_ERROR -128
-#define GCALAB_INVALID_OPTION -125
-#define GCALAB_UNKNOWN_OPTION -124
-#define GCALAB_CL_PARSE_ERROR -122
-#define GCALAB_INVALID_WS_ERROR -121;
+#define GCALAB_FATAL_ERROR 		-128
+#define GCALAB_INVALID_OPTION 	-125
+#define GCALAB_UNKNOWN_OPTION 	-124
+#define GCALAB_CL_PARSE_ERROR 	-122
+#define GCALAB_INVALID_WS_ERROR -121
 /*a few new error codes*/
 
-#define GCALAB_GRAPHICS_MODE 0
-#define GCALAB_TEXT_MODE 1
-#define GCALAB_BATCH_MODE 2
+#define GCALAB_GRAPHICS_MODE 	0
+#define GCALAB_TEXT_MODE 		1
+#define GCALAB_BATCH_MODE 		2
 
 #ifndef GCALAB_DEFAULT_MODE
-#define GCALAB_DEFAULT_MODE BATCH_MODE
+#define GCALAB_DEFAULT_MODE GCALAB_TEXT_MODE
 #endif
 
 #ifndef GCALAB_MAX_WORKSPACES
-#define GCALAB_MAX_WORKSPACES 10
+#define GCALAB_MAX_WORKSPACES 	10
 #endif
 
-#define GCALAB_MAX_INPUTLENGTH 10
+#define GCALAB_MAX_INPUTLENGTH 	10
+
+#define GCALAB_WS_STATE_IDLE 		0
+#define GCALAB_WS_STATE_PROCESSING 	1
+#define GCALAB_WS_STATE_PAUSED 		2
+#define GCALAB_WS_STATE_EXITING 	3
+#define GCALAB_WS_STATE_ERROR 		-1
+
+#define GCALAB_NOP 		0
+#define GCALAB_LOAD 	1
+#define GCALAB_SAVE 	2
+#define GCALAB_SIMULATE 3
+#define GCALAB_GCA 		4
+#define GCALAB_SAMPLE 	5
+#define GCALAB_ENTROPY 	6
+#define GCALAB_LAMBDA 	7
+#define GCALAB_Z 		8
+#define GCALAB_GDENSE 	9
 
 typedef struct CL_Options_struct CL_Options;
 typedef struct GCALabworkspace_struct GCALab_WS;
@@ -58,13 +78,14 @@ struct GCALabworkspace_struct
 {
 	GraphCellularAutomaton *GCAList;
 	mesh *GCAGeometry;
-	unsigned int *commandqueue;
+	unsigned int *	commandqueue;
 	unsigned int *commandtarget;
 	void **commandparams;
 	unsigned int numcommands;
 	unsigned int cur_command;
 	unsigned int state;
-}
+	pthread_mutex_t wslock;
+};
 
 struct CL_Options_struct
 {
@@ -113,14 +134,19 @@ struct CL_Options_struct
 };
 
 /*function prototypes*/
-char GCALab_Init(int argc,char **argc,CL_Options **opts);
+char GCALab_Init(int argc,char **argv,CL_Options **opts);
 char GCALab_NewWorkSpace(int GCALimit);
 char GCALab_QueueCommand(unsigned char ws_id,unsigned int command_id,unsigned int target_id,void *params);
 char GCALab_DequeueCommand(unsigned char ws_id,unsigned int index);
 char GCALab_ProcessCommandQueue(unsigned char ws_id);
 char GCALab_PauseCommandQueue(unsigned char ws_id);
+unsigned int GCALab_GetState(unsigned char ws_id);
+void GCALab_SetState(unsigned char ws_id,unsigned int state);
 void GCALab_ShutDown(char rc); 
 unsigned int GCALab_GetCommandCode(char *cmd);
+
+void *GCALab_Worker(void *params);
+char GCALab_PopCommandQueue(unsigned char ws_id,unsigned int *cmd, unsigned int *trgt,void *params);
 
 void GCALab_GraphicsMode(CL_Options* opts);
 void GCALab_TextMode(CL_Options* opts);
@@ -132,7 +158,12 @@ char GCALab_ValidWSId(unsigned int ws_id);
 char GCALab_BatchMode(CL_Options* opts);
 void GCALab_SplashScreen(void);
 void GCALab_HandleErr(char rc);
-void PrintGNUGPL3(void);
-void PrintAbout(void);
-void PrintUsage(void);
+void GCALab_PrintLicense(void);
+void GCALab_PrintAbout(void);
+void GCALab_PrintUsage(void);
+
+
+void PrintOptions(CL_Options* opts);
+void InitCL_Options(CL_Options* opts);
+CL_Options* ParseCommandLineArgs(int argc, char **argv);
 #endif
