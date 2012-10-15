@@ -112,8 +112,7 @@ void GCALab_TextMode(CL_Options* opts)
 		}
 		else if (!strcmp(cmd,"help"))
 		{
-			rc = GCALab_PrintHelp();
-			GCALab_HandleErr(rc);
+			GCALab_PrintHelp();
 		}
 		else if (!strcmp(cmd,"chwork"))
 		{
@@ -520,16 +519,14 @@ void * GCALab_Worker(void *params)
 {
 	unsigned char ws_id;
 	unsigned char exit,error;
-	ws_id = *((unsigned int*)params);
+	ws_id = (unsigned int)(unsigned long long)params;
 
 	exit = 0;
 	error = 0;
 	while(!exit)
 	{
-		unsigned int state,cmd,target;
 		
-		state = GCALab_GetState(ws_id);
-		switch(state)
+		switch(GCALab_GetState(ws_id))
 		{
 			case GCALAB_WS_STATE_ERROR:
 				exit = 1;
@@ -547,7 +544,11 @@ void * GCALab_Worker(void *params)
 				/*check if a command is available*/
 				/*if so then set state to processing*/
 				break;
+			case GCALAB_WS_STATE_EXITING:
+				exit = 1;
+				break;
 		}
+		usleep(1);
 	}
 	pthread_exit((void*)((long long)error));
 }
@@ -569,12 +570,15 @@ char GCALab_PopCommandQueue(unsigned char ws_id,unsigned int *cmd, unsigned int 
  */
 void GCALab_PrintAbout(void)
 {
-	fprintf(stdout,"The Graph Cellular Automata Lab is a multi-threaded, flexible, analysis tool forthe exploration of cellular automata defined on graphs.\n");
-	fprintf(stdout,"Version: %f\n",GCALAB_VERSION);
-	fprintf(stdout,"Author: David J. Warne\n");
-	fprintf(stdout,"School: School of Electrical Engineering and Computer Science, The Queensland University of Technology, Brisbane, Australia\n");
-	fprintf(stdout,"Contact: david.warne@qut.edu.au\n");
-	fprintf(stdout,"website: coming soon!\n");
+	fprintf(stdout,"\n The Graph Cellular Automata Lab is a multi-threaded,\n");
+	fprintf(stdout," flexible, analysis tool forthe exploration of cellular automata\n"); 
+	fprintf(stdout," defined on graphs.\n");
+	fprintf(stdout,"\n Version:\t%0.2f\n",GCALAB_VERSION);
+	fprintf(stdout," Author:\tDavid J. Warne\n");
+	fprintf(stdout," School:\tSchool of Electrical Engineering and Computer Science,\n");
+	fprintf(stdout," \t\tThe Queensland University of Technology, Brisbane, Australia\n");
+	fprintf(stdout," Contact:\tdavid.warne@qut.edu.au\n");
+	fprintf(stdout," Website:\tcoming soon!\n");
 	return;
 }
 
@@ -582,7 +586,10 @@ void GCALab_PrintAbout(void)
  */
 void GCALab_PrintLicense(void)
 {
-	fprintf(stdout,"GCALab v %f  Copyright (C) 2012  David J. Warne\n This program comes with ABSOLUTELY NO WARRANTY.\n This is free software, and you are welcome to redistribute it\n under certain conditions;\n",GCALAB_VERSION);
+	fprintf(stdout,"\n GCALab v %0.2f  Copyright (C) 2012  David J. Warne\n",GCALAB_VERSION);
+	fprintf(stdout," This program comes with ABSOLUTELY NO WARRANTY.\n");
+	fprintf(stdout," This is free software, and you are welcome to redistribute it\n");
+	fprintf(stdout," under certain conditions.\n");
 	return;
 }
 
@@ -593,10 +600,10 @@ void GCALab_SplashScreen(void)
 	switch(GCALab_mode)
 	{
 		case GCALAB_TEXT_MODE:
-			fprintf(stdout,"Welcome to Graph Cellular Automata Lab!\n");
+			fprintf(stdout,"\n +++ Welcome to Graph Cellular Automata Lab! +++\n");
 			GCALab_PrintAbout();
 			GCALab_PrintLicense();
-			fprintf(stdout,"Type \'help\' to get started.\n");
+			fprintf(stdout,"\n Type \'help\' to get started.\n");
 			break;
 		case GCALAB_BATCH_MODE:
 			GCALab_PrintLicense();
@@ -648,7 +655,7 @@ char ** GCALab_CommandPrompt(void)
 	
 	i = 0;
 	
-	fprintf(stdout,">>");
+	fprintf(stdout," -->");
 	fflush(stdout);
 	do {
 		c = fgetc(stdin);
@@ -1090,9 +1097,76 @@ CL_Options* ParseCommandLineArgs(int argc, char **argv)
 	return CL_opt;	
 }
 
+/* GCALab_NewWorkSpace(): Creates a new processing workspace, the user can set the limit 
+ *                        on the number of CA objects the workspace can hold.
+ */
 char GCALab_NewWorkSpace(int GCALimit)
 {
-	return 0;
+	GCALab_WS *new_ws;
+	int rc;
+
+	if (GCALab_numWS < GCALAB_MAX_WORKSPACES)
+	{
+		if (!(new_ws = (GCALab_WS*)malloc(sizeof(GCALab_WS))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+		/*initialise GCA memory*/
+		if(!(new_ws->GCAList = (GraphCellularAutomaton **)malloc(GCALimit*sizeof(GraphCellularAutomaton*))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+		if(!(new_ws->GCAGeometry = (mesh **)malloc(GCALimit*sizeof(mesh*))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+
+		new_ws->numGCA = 0;
+		if (GCALimit > 0)
+		{
+			new_ws->maxGCA = GCALimit;
+		}
+		else
+		{
+			new_ws->maxGCA = GCALAB_DEFAULT_MAX_GCA;
+		}
+
+		/*set up the command queue*/
+		if (!(new_ws->commandqueue = (unsigned int *)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(unsigned int))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+		if (!(new_ws->commandtarget = (unsigned int *)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(unsigned int))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+		if (!(new_ws->commandparams = (void**)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(void*))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+		new_ws->numcommands = 0;
+		new_ws->qhead = 0;
+		new_ws->qtail = 0;
+
+		GCALab_Global[GCALab_numWS] = new_ws;
+		/*init worker thread*/
+		new_ws->state = GCALAB_WS_STATE_PAUSED;
+		/*because the main thread updates the queue*/
+		pthread_mutex_init(&(new_ws->wslock),NULL);
+
+		rc = pthread_create(&(new_ws->worker),NULL,GCALab_Worker,(void*)(unsigned long long)GCALab_numWS);
+		if (rc)
+		{
+			return GCALAB_THREAD_ERROR;
+		}
+
+		GCALab_numWS++;
+		return GCALAB_SUCCESS;
+	}
+	else
+	{
+		return GCALAB_INVALID_WS_ERROR; 
+	}
 }
 
 char GCALab_QueueCommand(unsigned char ws_id,unsigned int command_id,unsigned int target_id,void *params)
@@ -1117,11 +1191,13 @@ char GCALab_PauseCommandQueue(unsigned char ws_id)
 
 unsigned int GCALab_GetState(unsigned char ws_id)
 {
-	return 0;
+ 	return GCALab_Global[ws_id]->state;
 }
 
 void GCALab_SetState(unsigned char ws_id,unsigned int state)
 {
+	//pthread_mutex_lock(&());
+	//pthread_mutex_unlock(&());
 	return;
 }
 
@@ -1129,13 +1205,19 @@ void GCALab_SetState(unsigned char ws_id,unsigned int state)
  */
 void GCALab_ShutDown(char rc)
 {
+	int i;
 	/*TODO: check if any workspaces are in processing state*/
 	/*if so then prompt the user*/
-	pthread_exit((void*)(long long)rc);
+	for (i=0;i<GCALab_numWS;i++)
+	{
+		GCALab_Global[i]->state = GCALAB_WS_STATE_EXITING;
+	}
+	pthread_exit(0);
 }
 
 void GCALab_PrintHelp(void)
 {
+	fprintf(stdout,"look at the code man...\n");
 	return;
 }
 
@@ -1146,5 +1228,30 @@ char GCALab_PrintWorkSpace(unsigned char ws_id)
 
 char GCALab_ListWorkSpaces(void)
 {
-	return 0;
+	int i;
+	fprintf(stdout,"ID\tCA\tQL\tST\n");
+	for (i=0;i<GCALab_numWS;i++)
+	{
+		fprintf(stdout,"%d\t%d\t%u\t",i,GCALab_Global[i]->numGCA,GCALab_Global[i]->numcommands);
+		switch(GCALab_Global[i]->state)
+		{
+			case GCALAB_WS_STATE_IDLE:
+				fprintf(stdout,"I\n");
+				break;
+			case GCALAB_WS_STATE_PROCESSING:
+				fprintf(stdout,"R\n");
+				break;
+			case GCALAB_WS_STATE_PAUSED:
+
+				fprintf(stdout,"P\n");
+				break;
+			case GCALAB_WS_STATE_EXITING:
+				fprintf(stdout,"Q\n");
+				break;
+			case GCALAB_WS_STATE_ERROR:
+				fprintf(stdout,"E\n");
+				break;
+		}
+	}
+	return GCALAB_SUCCESS;
 }

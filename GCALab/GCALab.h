@@ -37,6 +37,7 @@
 #define GCALAB_UNKNOWN_OPTION 	-124
 #define GCALAB_CL_PARSE_ERROR 	-122
 #define GCALAB_INVALID_WS_ERROR -121
+#define GCALAB_THREAD_ERROR 	-120
 /*a few new error codes*/
 
 #define GCALAB_GRAPHICS_MODE 	0
@@ -49,6 +50,14 @@
 
 #ifndef GCALAB_MAX_WORKSPACES
 #define GCALAB_MAX_WORKSPACES 	10
+#endif
+
+#ifndef GCALAB_DEFAULT_MAX_GCA 
+#define GCALAB_DEFAULT_MAX_GCA 	25
+#endif
+
+#ifndef GCALAB_COMMAND_BUFFER_SIZE
+#define GCALAB_COMMAND_BUFFER_SIZE	1024
 #endif
 
 #define GCALAB_MAX_INPUTLENGTH 	10
@@ -76,14 +85,18 @@ typedef struct GCALabworkspace_struct GCALab_WS;
 
 struct GCALabworkspace_struct
 {
-	GraphCellularAutomaton *GCAList;
-	mesh *GCAGeometry;
+	GraphCellularAutomaton **GCAList;
+	mesh **GCAGeometry;
+	int numGCA;
+	int maxGCA;
 	unsigned int *	commandqueue;
 	unsigned int *commandtarget;
 	void **commandparams;
 	unsigned int numcommands;
-	unsigned int cur_command;
+	unsigned int qhead;
+	unsigned int qtail;
 	unsigned int state;
+	pthread_t worker;
 	pthread_mutex_t wslock;
 };
 
@@ -161,6 +174,7 @@ void GCALab_HandleErr(char rc);
 void GCALab_PrintLicense(void);
 void GCALab_PrintAbout(void);
 void GCALab_PrintUsage(void);
+void GCALab_PrintHelp(void);
 
 
 void PrintOptions(CL_Options* opts);
