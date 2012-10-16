@@ -1,3 +1,19 @@
+/* GCALab: An analysis tool for Graph Cellular Automata
+ * Copyright (C) 2012  David J. Warne
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 /* File: GCALab.c
  *
  * Author: David J. Warne (david.warne@qut.edu.au)
@@ -7,7 +23,7 @@
  * Queensland University of Technology
  * 
  * Date Created: 18/04/2012
- * Last Modified: 18/04/2012
+ * Last Modified: 16/10/2012
  *
  * Version History:
  *       v 0.01 (18/04/2012) - i. Initial Version...  was bored at work and 
@@ -16,14 +32,20 @@
  *                             ii. starting to implement Batch mode
  *       v 0.04 (04/10/2012) - i. Re-implementing main processing loop entirely
  *                                this is a major restructure.
+ *       v 0.05 (15/10/2012) - i. implemented the command prompt,
+ *                             ii. implemented thread creation and deletion
+ *                             iii. implemented new workspace command
+ *       v 0.06 (16/10/2012) - i. commands for queue management implemented.
+ *                             ii. Began work on main compute routine.
+ *                             iii. Removed legacy code
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
  *
  * TODO List:
  *		1. test commandline parsing - done (v 0.02)
- *		2. implement batch mode first
- *		3. use ptheads to implement a main loop plus compute threads
+ *		2. implement batch mode first - cancelled (v 0.04)
+ *		3. use ptheads to implement a main loop plus compute threads - done (v 0.05)
  * 		4. implement text mode first, then re-implement batch mode, then graphics
  * 		5. carefully separated main engine from the mode type
  * Known Issues:
@@ -43,7 +65,7 @@ unsigned char GCALab_mode;
  */
 int main(int argc, char **argv)
 {
-	CL_Options* CL_opt;
+	GCALab_CL_Options* CL_opt;
 	char rc;
 	
 	rc = GCALab_Init(argc,argv,&CL_opt);
@@ -72,9 +94,10 @@ int main(int argc, char **argv)
 
 /* GCALab_TextMode(): starts a GCALab session in text-only mode
  */
-void GCALab_TextMode(CL_Options* opts)
+void GCALab_TextMode(GCALab_CL_Options* opts)
 {
 	char **userinput;
+	int numargs;
 	char* cmd;
 	char rc;
 	unsigned int cur_ws;
@@ -83,7 +106,7 @@ void GCALab_TextMode(CL_Options* opts)
 	while(1)
 	{
 		/*get user input*/
-		userinput = GCALab_CommandPrompt();
+		userinput = GCALab_CommandPrompt(&numargs);
 		/*ensure input is valid*/
 		rc = GCALab_TestPointer((void*)userinput);
 		GCALab_HandleErr(rc);
@@ -93,12 +116,18 @@ void GCALab_TextMode(CL_Options* opts)
 		if (!strcmp(cmd,"nwork"))
 		{
 			int lim;
-			lim = atoi(userinput[1]);
-			rc = GCALab_NewWorkSpace(lim);
-			GCALab_HandleErr(rc);
-			cur_ws = GCALab_numWS - 1;
-			printf("New Workspace create! ID = %d\n",cur_ws);
-			/*for ()*/
+			if (numargs < 2)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				lim = atoi(userinput[1]);
+				rc = GCALab_NewWorkSpace(lim);
+				GCALab_HandleErr(rc);
+				cur_ws = GCALab_numWS - 1;
+				printf("New Workspace create! ID = %d\n",cur_ws);
+			}
 		}
 		else if(!strcmp(cmd,"printwork"))
 		{
@@ -116,27 +145,68 @@ void GCALab_TextMode(CL_Options* opts)
 		}
 		else if (!strcmp(cmd,"chwork"))
 		{
-			unsigned int new_ws = (unsigned int)atoi(userinput[1]);
-			rc = GCALab_ValidWSId(new_ws);
-			GCALab_HandleErr(rc);
+			if (numargs < 2)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				unsigned int new_ws;
+				new_ws = (unsigned int)atoi(userinput[1]);
+				rc = GCALab_ValidWSId(new_ws);
+				GCALab_HandleErr(rc);
+				/*only update if the id was valid*/
+				if (rc != GCALAB_INVALID_WS_ERROR)
+				{
+					cur_ws = new_ws;
+				}
+				fprintf(stdout,"Current Workspace is ID = %d\n",cur_ws);
+			}
 		}
 		else if (!strcmp(cmd,"q"))
 		{
-			unsigned int cmd_code;
-			unsigned int target;
-			char ** params;
-			cmd_code = GCALab_GetCommandCode(userinput[1]);
-			target = (unsigned int)atoi(userinput[2]);
-			params = userinput+3;
-			rc = GCALab_QueueCommand(cur_ws,cmd_code,target,(void*)params);	
-			GCALab_HandleErr(rc);
+			if (numargs < 3)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				unsigned int cmd_code;
+				unsigned int target;
+				int numparams;
+				char ** params;
+				int i;
+				/*first get the id map for the command*/
+				cmd_code = GCALab_GetCommandCode(userinput[1]);
+				/*the target id is next*/
+				target = (unsigned int)atoi(userinput[2]);
+			
+				/*everything else is specific to the command*/
+				numparams = numargs - 3;
+				/*make a copy*/
+				params = strvncpy(userinput+3,numparams,GCALAB_MAX_STRLEN);
+				rc = GCALab_TestPointer((void*)params);
+				GCALab_HandleErr(rc);
+			
+				/*push it to the queue*/
+				rc = GCALab_QueueCommand(cur_ws,cmd_code,target,params,numparams);	
+				GCALab_HandleErr(rc);
+			}
 		}
-		else if (!strcmp(cmd,"dq"))
+		else if (!strcmp(cmd,"cancel"))
 		{
-			unsigned int ind;
-			ind = (unsigned int)atoi(userinput[1]);
-			rc = GCALab_DequeueCommand(cur_ws,ind);
-			GCALab_HandleErr(rc);
+			
+			if (numargs < 2)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				unsigned int ind;
+				ind = (unsigned int)atoi(userinput[1]);
+				rc = GCALab_CancelCommand(cur_ws,ind);
+				GCALab_HandleErr(rc);
+			}
 		}
 		else if (!strcmp(cmd,"execq"))
 		{
@@ -146,6 +216,11 @@ void GCALab_TextMode(CL_Options* opts)
 		else if (!strcmp(cmd,"stopq"))
 		{
 			rc = GCALab_PauseCommandQueue(cur_ws);
+			GCALab_HandleErr(rc);
+		}
+		else if(!strcmp(cmd,"printq"))
+		{
+			rc = GCALab_PrintCommandQueue(cur_ws);
 			GCALab_HandleErr(rc);
 		}
 		else if(!strcmp(cmd,"quit"))
@@ -188,16 +263,35 @@ void GCALab_HandleErr(char rc)
 {
 	if (rc <= 0)
 	{
-		/*for now we consider all errors fatal*/
-		fprintf(stderr,"GCALab: An error occurred for which GCALab is not smart enought to recover... Aborting [%x]\n",rc);
-		pthread_exit((void*)1);
+		switch (rc)
+		{
+			case GCALAB_MEM_ERROR:
+				fprintf(stderr,"OUT OF MEMORY!!!\n");
+				exit(1);
+				break;
+			case GCALAB_FATAL_ERROR:
+				fprintf(stderr,"A fatal error occurred. Aborting.\n");
+				exit(1);
+				break;
+			case GCALAB_INVALID_OPTION:
+				break;
+			case GCALAB_UNKNOWN_OPTION:
+				break;
+			case GCALAB_CL_PARSE_ERROR:
+				break;
+			case GCALAB_INVALID_WS_ERROR:
+				break;
+			case GCALAB_THREAD_ERROR:
+				exit(1);
+				break;
+		}
 	}
 }
 
 /* GCALab_Init(): sets up GCALab with default settings, unless
  *                overridden via start-up commands
  */
-char GCALab_Init(int argc,char **argv,CL_Options **opts)
+char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 {
 	GCALab_Global = (GCALab_WS **)malloc(GCALAB_MAX_WORKSPACES*sizeof(GCALab_WS*));
 	if(!(GCALab_Global))
@@ -205,7 +299,7 @@ char GCALab_Init(int argc,char **argv,CL_Options **opts)
 		return GCALAB_FATAL_ERROR;
 	}
 
-	opts[0] = ParseCommandLineArgs(argc,argv);
+	opts[0] = GCALab_ParseCommandLineArgs(argc,argv);
 	if (!(opts[0]))
 	{
 		return GCALAB_CL_PARSE_ERROR;
@@ -217,261 +311,21 @@ char GCALab_Init(int argc,char **argv,CL_Options **opts)
 
 /* GCALab_InteractiveMode(): Runs GCALab interactively
  */
-void GCALab_GraphicsMode(CL_Options* opts)
+void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 {
 }
 
 /* GCALab_BatchMode(): Runs Commands is batch mode
  * TODO: support a Job queue
  */
-char GCALab_BatchMode(CL_Options* opts)
+char GCALab_BatchMode(GCALab_CL_Options* opts)
 {
-/*	GraphCellularAutomaton *GCA;
-	CellularAutomatonParameters *params;
-	char rc;
-*/	/*allocate memory the params struct*/
-/*	if (!(params = (CellularAutomatonParameters*)malloc(sizeof(CellularAutomatonParameters))))
-	{
-		return MEM_ERROR;
-	}
-*/	
-	/*Create or load CA and Topology*/
-/*	if (opts->load_CA)
-	{
-*/		/*read file*/
-		
-/*		if (opts->GenTopology)
-		{
-*/			/*generate top using given params*/
-/*		}
-		else
-		{
-*/			/*use loaded topology*/
-/*		}
-	}
-	else if (opts->GenCA)
-	{
-*/		/*two special cases*/
-/*		if (opts->ECA)
-		{
-*/			/*create given 1-d ECA rule*/
-/*			GCA = CreateECA(opts->N,opts->k,opts->rule);
-*/			/*set initial condition if not already specifieds*/
-/*			if (!(opts->ICtype == EXPLICIT_IC_TYPE))
-			{
-				SetCAIC(GCA,NULL,opts->ICtype);
-			}
-		}
-		else if (opts->GOL)
-		{
-*/			/*create given Game of life instance*/
-/*		}
-		else
-		{
-			if (opts->GenTopology)
-			{
-*/				/*generate top using given params*/
-/*			}
-			else
-			{
-*/				/*just assume 1-d ring*/
-/*			}
-		}
-	}
-		
-	if (opts->save_CA)
-	{
-*/		/*write CA params and topology to file*/
-/*		if((rc = GCALAB_saveCA(opts->CAOutputFilename,GCA)) <= 0)
-		{
-			fprintf(stderr,"%d\n",rc);
-			return rc; 
-		}
-	}
-	
-*/	/*simulation stuff*/
-/*	if (opts->do_ShannonE || opts->do_WordE || opts->do_InputE || opts->do_Pr || opts->do_G)
-	{
-*/		/*this is an analysis run, don't run a ordinary simulation*/
-		
-/*		if (opts->do_ShannonE)
-		{
-			float S;
-			unsigned int i,samples;
-			char buff[255];
-			samples = opts->numSamples;
-			S = 0.0;
-			for (i=0;i<samples;i++)
-			{
-				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
-				S += ShannonEntropy(GCA,opts->end_t,NULL);
-			}
-			S /= (float)samples;	
-			if (opts->save_CA)
-			{
-*/				/*append data*/
-/*				sprintf(buff,"Shannon Entropy (%d samples, %d timesteps)",samples,opts->end_t);
-				GCALAB_appendData(opts->CAOutputFilename,buff,(void*)&S,1,FLOAT32);
-			}
-		}
-		
-		if (opts->do_WordE)
-		{
-			float W;
-			unsigned int i,samples;
-			char buff[255];
-			samples = opts->numSamples;
-			W = 0.0;
-			for (i=0;i<samples;i++)
-			{
-				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
-				W += WordEntropy(GCA,opts->end_t,NULL);
-			}
-			W /= (float)samples;	
-			if (opts->save_CA)
-			{
-*/				/*append data*/
-/*				sprintf(buff,"Word Entropy (%d samples, %d timesteps)",samples,opts->end_t);
-				GCALAB_appendData(opts->CAOutputFilename,buff,(void*)&W,1,FLOAT32);
-			
-			}
-		}
-		
-		if (opts->do_InputE)
-		{
-			if (opts->save_CA)
-			{
-*/				/*append data*/
-/*			}
-		}
-		
-		if (opts->do_Pr)
-		{
-			unsigned int *counts;
-			unsigned int *temp;
-			int size;
-			char buff[255];
-*/		/*	probs = ComputeExactProbs(GCA);*/
-/*			size = (GCA->params->N)*(GCA->params->s);
-			counts = (unsigned int*)malloc(size*sizeof(unsigned int));
-			memset((void*)counts,0,size*sizeof(unsigned int));
-*/			/*get counts within the IC range*/
-/*			SumCAImages(GCA,counts,opts->range,0);
-			if (opts->save_CA)
-			{
-*/				/*append data*/
-/*				unsigned char s;
-				for (s=0;s<opts->numStates;s++)
-				{
-					sprintf(buff,"Cell State Counts (s = %d)",s);
-					temp = &(counts[((unsigned int)s)*GCA->params->N]);
-					GCALAB_appendData(opts->CAOutputFilename,buff,(void*)temp,GCA->params->N,UINT32);
-				}
-			}
-			free(counts);
-			free(temp);
-		}
-
-		if (opts->do_R)
-		{
-			unsigned int *counts;
-			int size;
-			int i;
-			char buff[255];
-			unsigned int *temp;
-			chunk* ics;
-			
-			size = (GCA->params->N)*(GCA->params->s);
-			counts = (unsigned int*)malloc(size*sizeof(unsigned int));
-			memset((void*)counts,0,size*sizeof(unsigned int));
-			ics = (chunk*)malloc((opts->numSamples)*sizeof(chunk));
-			
-			for (i=0;i<opts->numSamples;i++)
-			{
-				ics[i] = rand();
-			}
-
-			SumCAImages(GCA,counts,ics,opts->numSamples);
-			if (opts->save_CA)
-			{
-*/				/*append data*/
-/*				unsigned char s;
-				for (s=0;s<opts->numStates;s++)
-				{
-					sprintf(buff,"Cell State Counts (s = %d)",s);
-					temp = &(counts[((unsigned int)s)*GCA->params->N]);
-					GCALAB_appendData(opts->CAOutputFilename,buff,(void*)temp,GCA->params->N,UINT32);
-				}
-			}
-			free(counts);
-			free(temp);
-			free(ics);
-		}
-	}
-	else
-	{
-		int i;
-		char buff[255];
-*/		/*set initial condition if not already specifieds*/
-/*		if (!(opts->ICtype == EXPLICIT_IC_TYPE))
-		{
-			SetCAIC(GCA,NULL,opts->ICtype);
-		}
-		
-*/		/*just get the spatio-temopral pattern*/
-/*		CASimTSteps(GCA,opts->end_t);
-		
-		if (opts->save_CA)
-		{
-*/			/*append data*/
-/*			if (GCA->t > GCA->params->WSIZE)
-			{
-*/				/*for(i=GCA->params->WSIZE-1;i>=0;i--)
-				{
-					sprintf(buff,"t = %d",GCA->t-i);
-					GCALAB_appendData(opts->CAOutputFilename,buff,(void*)(GCA->st_pattern[i]),GCA->size,CHUNK);	
-				}*/
-/*				for (i=0;i<=GCA->t;i++)
-				{
-					sprintf(buff,"t = %d",i);
-					GCALAB_appendData(opts->CAOutputFilename,buff,(void*)(GCA->st_pattern[i]),GCA->size,CHUNK);	
-				}
-			}
-			else
-			{
-				for(i=0;i<=GCA->t;i++)
-				{
-					sprintf(buff,"t = %d",i);
-					GCALAB_appendData(opts->CAOutputFilename,buff,(void*)(GCA->st_pattern[i]),GCA->size,CHUNK);	
-				}
-			}
-		}
-	}
-	
-	if (opts->do_Z)
-	{
-*/		/*relatively Cheap*/
-/*		if (opts->save_CA)
-		{
-*/			/*append data*/
-/*		}
-	}
-	
-	if (opts->do_Lambda)
-	{
-*/		/*trivial*/
-/*		if (opts->save_CA)
-		{
-*/			/*append data*/
-/*		}
-	}
-	return 0;	
-*/
 }
 
 
-
-
+/* GCALab_GetCommandCode(): converts the command string into a
+ *                          command id
+ */
 unsigned int GCALab_GetCommandCode(char* cmd)
 {
 	if (!strcmp(cmd,"load"))
@@ -490,25 +344,21 @@ unsigned int GCALab_GetCommandCode(char* cmd)
 	{
 		return GCALAB_GCA;
 	}
-	else if (!strcmp(cmd,"sample"))
-	{
-		return GCALAB_SAMPLE;
-	}
 	else if (!strcmp(cmd,"entropy"))
 	{
 		return GCALAB_ENTROPY;
 	}
-	else if (!strcmp(cmd,"lambda"))
+	else if (!strcmp(cmd,"param"))
 	{
-		return GCALAB_LAMBDA;
+		return GCALAB_PARAM;
 	}
-	else if (!strcmp(cmd,"Z"))
+	else if (!strcmp(cmd,"reverse"))
 	{
-		return GCALAB_Z;
+		return GCALAB_REVERSE;
 	}
-	else if (!strcmp(cmd,"G"))
+	else
 	{
-		return GCALAB_GDENSE;
+		return GCALAB_NOP;
 	}
 
 }
@@ -525,7 +375,6 @@ void * GCALab_Worker(void *params)
 	error = 0;
 	while(!exit)
 	{
-		
 		switch(GCALab_GetState(ws_id))
 		{
 			case GCALAB_WS_STATE_ERROR:
@@ -536,13 +385,19 @@ void * GCALab_Worker(void *params)
 				break;
 			case GCALAB_WS_STATE_PROCESSING:
 				/*the next command*/
-
-				/*if empty set to idle state*/
-				/*otherwise process*/
+				GCALab_DoNextCommand(ws_id);
+				if (GCALab_GetState(ws_id) == GCALAB_WS_STATE_PROCESSING)
+				{
+					GCALab_SetState(ws_id,GCALAB_WS_STATE_IDLE);
+				}
 				break;
 			case GCALAB_WS_STATE_IDLE:
 				/*check if a command is available*/
-				/*if so then set state to processing*/
+				if(!GCALab_CommandQueueEmpty(ws_id))
+				{
+					/*if so then set state to processing*/
+					GCALab_SetState(ws_id,GCALAB_WS_STATE_PROCESSING);
+				}
 				break;
 			case GCALAB_WS_STATE_EXITING:
 				exit = 1;
@@ -553,19 +408,154 @@ void * GCALab_Worker(void *params)
 	pthread_exit((void*)((long long)error));
 }
 
-
-/* GCALab_PopCommandQueue(): gets the next command from the command queue of the given
- *                           workspace
+/* GCALab_CommandQueueEmpty(): evaluates to true when the Command queue for 
+ *                             the given workspace is empty.
  */
-char GCALab_PopCommandQueue(unsigned char ws_id,unsigned int *cmd, unsigned int *trgt,void *params)
+unsigned char GCALab_CommandQueueEmpty(unsigned char ws_id)
 {
-	/*get a lock on this workspace*/
-	/*pthread_mutex_lock();
-
-	pthread_mutex_unlock();*/
+	unsigned char empty;
+	GCALab_LockWS(ws_id);
+	empty = (WS(ws_id)->numcommands == 0);
+	GCALab_UnLockWS(ws_id);
+	return empty;
 }
 
+/* GCALab_DoNextCommand(): executes the next command in the given command queue.
+ */
+char GCALab_DoNextCommand(unsigned char ws_id)
+{
+	unsigned int cmd_id,trgt_id;
+	int nparams;
+	int index,i;
+	char **params;
+	GCALabOutput *res;
 
+	res = NULL;
+	
+	GCALab_LockWS(ws_id);
+	index = WS(ws_id)->qhead;
+	cmd_id = WS(ws_id)->commandqueue[index];
+	trgt_id = WS(ws_id)->commandtarget[index];
+	nparams = WS(ws_id)->numparams[index];
+	params = strvncpy(WS(ws_id)->commandparams[index],nparams,GCALAB_MAX_STRLEN);
+	GCALab_UnLockWS(ws_id);
+
+	/*do processing*/
+	switch(cmd)
+	{
+		case GCALAB_NOP:
+			return GCALAB_SUCCESS;
+			break;
+		case GCALAB_LOAD:
+		{
+			char *filename;
+			filename = NULL;
+			for (i=0;i<nparams;i++)
+			{
+				if(!strcmp(params[i],"-f"))
+				{
+					filename = params[++i];
+				}
+			}
+		}
+			break;
+		case GCALAB_SAVE:
+		{
+			char *filename;
+			unsigned char gca_res_flag;
+			filename = NULL;
+			gca_res_flag = 0;
+			for (i=0;i<nparams;i++)
+			{
+				if(!strcmp(params[i],"-f"))
+				{
+					filename = params[++i];
+				}
+				else if (!strcmp(params[i],"-r"))
+				{
+					gca_res_flag = 0;
+				}
+				else if (!strcmp(para,s[i],"-g"))
+				{
+					gca_res_flag = 1;
+				}
+			}
+		}
+			break;
+		case GCALAB_SIMULATE:
+		{
+			unsigned int Tfinal;
+			unsigned char reInit,ic_type;
+			char *ic_filename;
+			for (i=0;i<nparams;i++)
+			{
+				if(!strcmp(params[i],"-t"))
+				{
+					Tfinal = (unsigned int)atoi(params[++i]);
+				}
+				else if (!strcmp(params[i],"-I"))
+				{
+					reInit = 1;
+				}
+				else if (!strcmp(params[i],"-f"))
+				{
+					ic_filename = params[++i];
+				}
+				else if (!strcmp(params[i],"-c"))
+				{
+					ic_type = (unsigned char)atoi(params[++i]);
+				}
+			}
+		}
+			break;
+		case GCALAB_GCA:
+		{
+			char *meshfile;
+			unsigned int NCells,genus,windowsize;
+			unsigned char rule_type,rule_code,s,k,eca;
+		}
+			break;
+		case GCALAB_ENTROPY:
+		{
+			unsigned int numSamples;
+			unsigned int type;
+		}
+			break;
+		case GCALAB_PARAM:
+		{
+			unsigned int type;
+		}
+			break;
+		case GCALAB_REVERSE:
+		{
+			
+		}
+			break;
+	}
+
+	/*clean up copied params*/
+	for (i=0;i<nparams;i++)
+	{
+		free(params[i]);
+	}
+	free(params);
+	
+	GCALab_LockWS(ws_id);
+	WS(ws_id)->qhead = (WS(ws_id)->qhead+1)%GCALAB_COMMAND_BUFFER_SIZE;
+	WS(ws_id)->numcommands--;
+	if (res != NULL)
+	{
+		if (WS(ws_id)->numresults < GCALAB_MAX_RESULTS)
+		{
+			WS(ws_id)->results[WS(ws_id)->numresults] = res;
+			WS(ws_id)->numresults++;
+		}
+	}
+	/*Cleanup command*/
+	GCALab_UnLockWS(ws_id);
+	return GCALAB_SUCCESS;
+
+}
 /* PrintsAbout(): Prints Author and affiliation information
  */
 void GCALab_PrintAbout(void)
@@ -623,28 +613,12 @@ void GCALab_PrintUsage()
 	printf("\t [-b,--batch]\n\t\t : start in batch mode\n");
 	printf("\t [-l,--load] filename\n\t\t : load *.gca file\n");			
 	printf("\t [-o,--save] filename\n\t\t : save results in *.gca file\n");
-	printf("\t [-E,--simulate] startT endT\n\t\t : Specify a the time interval to run the CA over\n");
-	printf("\t [-m,--topology] g N k\n\t\t : Create a Graph CA with topology genus g of N cells with k neighbourhood\n");	
-	printf("\t [-g,--GOL] N\n\t\t : Create Conway's Game of Life with N cells\n");			
-	printf("\t [-e,--ECA] r N\n\t\t : Create elementary CA rule r of N cells\n");			
-	printf("\t [-w,--window-size] size\n\t\t : Specify temporal window size\n");			
-	printf("\t [-t,--ruletype] ruletype\n\t\t : Specify the type of the given rule\n");			
-	printf("\t [-r,--rule] code\n\t\t : the given rule interpreted by the -t option\n");			
-	printf("\t [-s,--num-States]\n\t\t : number of possible states per cell\n");			
-	printf("\t [-I,--Input-Entropy]\n\t\t : Compute Input Entropy\n");			
-	printf("\t [-S,--Shannon-Entropy]\n\t\t : Compute Shannon Entropy\n");			
-	printf("\t [-W,--Word-Entropy]\n\t\t : Compute Word Entropy\n");			
-	printf("\t [-L,--Lambda-paramater\n\t\t : Compute Langton's Lambda parameter\n");
-	printf("\t [-Z,--Z-parameter]\n\t\t : Compute Weunsche's Z parameter\n");
-	printf("\t [-G,--G-density]\n\t\t : Compute Garden-of-Eden Density\n");
-	printf("\t [-P,--Exact-Probs] l u\n\t\t : Compute Exact Proabitities over given range\n");
-	printf("\t [-R,--Random-Sample-Number] n\n\t\t : Specify n Random initial conditions\n");
 }
 
 /* GCALab_CommandPrompt(): Prompts the user to enter a command in text mode, the
  *                         users input string is then tokenised with whitespace as the delimiter.
  */
-char ** GCALab_CommandPrompt(void)
+char ** GCALab_CommandPrompt(int *numargs)
 {
 	char buffer[256];
 	int i,j,k;
@@ -654,7 +628,7 @@ char ** GCALab_CommandPrompt(void)
 	char c;
 	
 	i = 0;
-	
+	/*show the prompt to the user*/	
 	fprintf(stdout," -->");
 	fflush(stdout);
 	do {
@@ -689,6 +663,7 @@ char ** GCALab_CommandPrompt(void)
 
 	j = 0;
 	k = 0;
+	/*parse the commandline*/
 	for (i=0;i<len-1;i++)
 	{
 		if (buffer[i] != ' ')
@@ -698,118 +673,40 @@ char ** GCALab_CommandPrompt(void)
 			if (buffer[i+1] == ' ' || buffer[i+1] == '\0')
 			{
 				argv[j][k] = '\0';
-				fprintf(stderr,"%s\n",argv[j]);
 				k = 0;
 				j++;
 			}
 		}
 	}
-
+	*numargs = argc;
 	return argv;
 }
 
-/* PrintOptions(): Prints selected options
+/* GCALab_InitCL_Options(): Initialises the options struct with defaults values
  */
-void PrintOptions(CL_Options* opts)
-{
-	printf("mode: %d\n",opts->mode);
-	printf("load: %u\n",opts->load_CA);
-	printf("save: %u\n",opts->save_CA);
-	printf("In file: %s\n",opts->CAInputFilename);
-	printf("Out file: %s\n",opts->CAOutputFilename);
-	printf("Gen Topology: %u\n",opts->GenTopology);
-	printf("Gen CA: %u\n",opts->GenCA);
-	printf("N: %u\n",opts->N);
-	printf("k: %u\n",opts->k);
-	printf("GOL: %u\n",opts->GOL);
-	printf("ECA: %u\n",opts->ECA);
-	printf("S: %u\n",opts->numStates);
-	printf("type: %u\n",opts->ruletype);
-	printf("rule: %u\n",opts->rule);
-	printf("W: %u\n",opts->windowSize);
-	printf("t: [%u,%u] \n",opts->start_t,opts->end_t);
-	printf("vis: %u\n",opts->visualise);
-	printf("SE: %u\n",opts->do_ShannonE);
-	printf("WE: %u\n",opts->do_WordE);
-	printf("IE: %u\n",opts->do_InputE);
-	printf("L: %u\n",opts->do_Lambda);
-	printf("Z: %u\n",opts->do_Z);
-	printf("G: %u\n",opts->do_G);
-	printf("Pr: %u\n",opts->do_Pr);
-	printf("range: [%u,%u]\n",opts->range[0],opts->range[1]);
-	printf("IC: %u\n",opts->ICtype);
-}
-
-/* InitCL_Options(): Initialises the options struct with defaults values
- */
-void InitCL_Options(CL_Options* opts)
+void GCALab_InitCL_Options(GCALab_CL_Options* opts)
 {
 	opts->mode = GCALAB_DEFAULT_MODE;
 	opts->load_CA = 0;
 	opts->save_CA = 0;
 	opts->CAInputFilename = "";
 	opts->CAOutputFilename = "";
-	opts->GenTopology = 0;
-	opts->GenCA = 1;
-	opts->N = 512;
-	opts->k = 3;
-	opts->GOL = 0;
-	opts->ECA = 1;
-	opts->numStates = 2;
-	opts->ruletype = DEFAULT_RULE_TYPE;
-	opts->ICtype = DEFAULT_IC_TYPE;
-	opts->rule = 110;
-	opts->windowSize = 1024;
-	opts->start_t = 0;
-	opts->end_t = 1024;
-	opts->visualise = 1;
-	opts->do_ShannonE = 0;
-	opts->do_WordE = 0;
-	opts->do_InputE = 0;
-	opts->do_Lambda = 0;
-	opts->do_Z = 0;
-	opts->do_G = 0;
-	opts->do_Pr = 0;
-	opts->do_R = 0;
-	opts->range[0] = 0;
-	opts->range[1] = 2;
-	opts->numSamples = 1000;
 }
 
-/*PrintError(): Print Error messages*/
-/*void PrintError(char err_code,void *err_data)
-{
-	switch (err_code)
-	{
-		case MEM_ERROR:
-			fprintf(stderr,"ERROR: Memory allocation failed! code [%d]\n",err_code);
-			break;
-		case INVALID_OPTION:
-			fprintf(stderr,"ERROR: Inavild use of option -%s! code [%d]\n",(char*)err_data,err_code);
-			break;
-		case UNKNOWN_OPTION:
-			fprintf(stderr,"ERROR: Unknown option %s! code [%d]\n",(char*)err_data,err_code);
-			break;
-		default:
-			fprintf(stderr,"ERROR: Dunno what happened though? Weird...\n");
-			break;
-	}
-}*/
-
-/* ParseCommandLineArgs(): parses the command line arguments and returns a struct
+/* GCALab_ParseCommandLineArgs(): parses the command line arguments and returns a struct
  *                         of user options. 
  */
-CL_Options* ParseCommandLineArgs(int argc, char **argv)
+GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 {
 	int i;
-	CL_Options* CL_opt;
+	GCALab_CL_Options* CL_opt;
 	
-	if(!(CL_opt = (CL_Options*)malloc(sizeof(CL_Options))))
+	if(!(CL_opt = (GCALab_CL_Options*)malloc(sizeof(GCALab_CL_Options))))
 	{
 		return NULL;
 	}
 	
-	InitCL_Options(CL_opt);
+	GCALab_InitCL_Options(CL_opt);
 	
 	for (i=1;i<argc;i++)
 	{
@@ -839,7 +736,6 @@ CL_Options* ParseCommandLineArgs(int argc, char **argv)
 						}
 						else
 						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
 							GCALab_PrintUsage();
 							return NULL;
 						}
@@ -852,132 +748,9 @@ CL_Options* ParseCommandLineArgs(int argc, char **argv)
 						}
 						else
 						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
 							GCALab_PrintUsage();
 							return NULL;
 						}
-						break;
-					case 'E':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->start_t = (unsigned int)atoi(argv[++i]);
-							CL_opt->end_t = (unsigned int)atoi(argv[++i]);
-						}
-						else
-						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 'm':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->GenTopology = 1;
-							CL_opt->type = argv[++i][0]; 
-							CL_opt->N = (unsigned int)atoi(argv[++i]);
-							CL_opt->k = (unsigned int)atoi(argv[++i]);
-						}
-						else
-						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 'g':
-						CL_opt->GenCA = 1;
-						CL_opt->GOL = 1;
-						CL_opt->N = (unsigned int)atoi(argv[++i]);
-						break;
-					case 'e':
-						CL_opt->GenCA = 1;
-						CL_opt->ECA = 1;
-						CL_opt->rule = (unsigned int)atoi(argv[++i]);
-						CL_opt->N = (unsigned int)atoi(argv[++i]);
-						break;
-					case 'w':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->GenCA = 1;
-							CL_opt->windowSize = (unsigned int)atoi(argv[++i]);
-						}
-						else
-						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 't':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->GenCA = 1;
-							CL_opt->ruletype = (unsigned char)atoi(argv[++i]);
-						}
-						else
-						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 'r':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->GenCA = 1;
-							CL_opt->rule = (unsigned int)atoi(argv[++i]);
-						}
-						else
-						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 's':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->GenCA = 1;
-							CL_opt->numStates = (unsigned char)atoi(argv[++i]);
-						}
-						else
-						{
-						//	PrintError(INVALID_OPTION,(void *)optslist);
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 'I':
-						CL_opt->do_InputE = 1;
-						break;
-					case 'S':
-						CL_opt->do_ShannonE = 1;
-						break;
-					case 'W':
-						CL_opt->do_WordE = 1;
-						break;
-					case 'L':
-						CL_opt->do_Lambda = 1;
-						break;
-					case 'Z':
-						CL_opt->do_Z = 1;
-						break;
-					case 'G':
-						CL_opt->do_G = 1;
-						break;
-					case 'P':
-						CL_opt->do_Pr = 1;
-						CL_opt->range[0] = (chunk)atoi(argv[++i]);
-						CL_opt->range[1] = (chunk)atoi(argv[++i]);
-						break;
-					case 'R':
-						CL_opt->numSamples = atoi(argv[++i]);
-						break;
-					default:
-						//PrintError(UNKNOWN_OPTION,(void *)optslist);
-						GCALab_PrintUsage();
-						return NULL;
 						break;
 				}
 				
@@ -1004,89 +777,8 @@ CL_Options* ParseCommandLineArgs(int argc, char **argv)
 				CL_opt->save_CA = 1;
 				CL_opt->CAOutputFilename = argv[++i];	
 			}
-			else if(!strcmp(argv[i],"--simulate"))
-			{
-				CL_opt->start_t = (unsigned int)atoi(argv[++i]);
-				CL_opt->end_t = (unsigned int)atoi(argv[++i]);
-			}
-			else if(!strcmp(argv[i],"--topology"))
-			{
-				CL_opt->GenTopology = 1;
-				CL_opt->type = argv[++i][0]; 
-				CL_opt->N = (unsigned int)atoi(argv[++i]);
-				CL_opt->k = (unsigned int)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--GOL"))
-			{
-				CL_opt->GenCA = 1;
-				CL_opt->GOL = 1;
-				CL_opt->N = (unsigned int)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--ECA"))
-			{
-				CL_opt->GenCA = 1;
-				CL_opt->ECA = 1;
-				CL_opt->rule = (unsigned int)atoi(argv[++i]);
-				CL_opt->N = (unsigned int)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--window-size"))
-			{
-				CL_opt->GenCA = 1;
-				CL_opt->windowSize = (unsigned int)atoi(argv[++i]);
-			}
-			else if(!strcmp(argv[i],"--ruletype"))
-			{
-				CL_opt->GenCA = 1;
-				CL_opt->ruletype = (unsigned char)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--rule"))
-			{
-				CL_opt->GenCA = 1;
-				CL_opt->rule = (unsigned int)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--num-States"))
-			{
-				CL_opt->GenCA = 1;
-				CL_opt->numStates = (unsigned char)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--Input-Entropy"))
-			{
-				CL_opt->do_InputE = 1;
-			}
-			else if (!strcmp(argv[i],"--Shannon-Entropy"))
-			{
-				CL_opt->do_ShannonE = 1;
-			}
-			else if (!strcmp(argv[i],"--Word-Entropy"))
-			{
-				CL_opt->do_WordE = 1;
-			}
-			else if (!strcmp(argv[i],"--Lambda-parameter"))
-			{
-				CL_opt->do_Lambda = 1;
-			}
-			else if (!strcmp(argv[i],"--Z-parameter"))
-			{
-				CL_opt->do_Z = 1;
-			}
-			else if (!strcmp(argv[i],"--G-density"))
-			{
-				CL_opt->do_G = 1;
-			}
-			else if (!strcmp(argv[i],"--Exact-Probs"))
-			{
-				CL_opt->do_Pr = 1;
-				CL_opt->range[0] = (chunk)atoi(argv[++i]);
-				CL_opt->range[1] = (chunk)atoi(argv[++i]);
-			}
-			else if (!strcmp(argv[i],"--Random-Sample-Number"))
-			{
-				
-				CL_opt->numSamples = atoi(argv[++i]);
-			}
 			else /*unknown option*/
 			{
-				//PrintError(INVALID_OPTION,(void *)argv[i]);
 				GCALab_PrintUsage();
 				return NULL;
 			}
@@ -1131,26 +823,42 @@ char GCALab_NewWorkSpace(int GCALimit)
 			new_ws->maxGCA = GCALAB_DEFAULT_MAX_GCA;
 		}
 
+		/*result data memory*/
+		new_ws->numresults = 0;
+		if (!(new_ws->results = (GCALabOutput**)malloc(GCALAB_MAX_RESULTS*sizeof(GCALabOutput*))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
 		/*set up the command queue*/
 		if (!(new_ws->commandqueue = (unsigned int *)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(unsigned int))))
 		{
 			return GCALAB_MEM_ERROR;
 		}
+		memset((void*)(new_ws->commandqueue),0,GCALAB_COMMAND_BUFFER_SIZE*sizeof(unsigned int));
 		if (!(new_ws->commandtarget = (unsigned int *)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(unsigned int))))
 		{
 			return GCALAB_MEM_ERROR;
 		}
-		if (!(new_ws->commandparams = (void**)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(void*))))
+		memset((void*)(new_ws->commandtarget),0,GCALAB_COMMAND_BUFFER_SIZE*sizeof(unsigned int));
+		if (!(new_ws->commandparams = (char***)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(char**))))
 		{
 			return GCALAB_MEM_ERROR;
 		}
+		memset((void*)(new_ws->commandparams),0,GCALAB_COMMAND_BUFFER_SIZE*sizeof(char**));
+		if (!(new_ws->numparams = (int *)malloc(GCALAB_COMMAND_BUFFER_SIZE*sizeof(int))))
+		{
+			return GCALAB_MEM_ERROR;
+		}
+		memset((void*)(new_ws->numparams),0,GCALAB_COMMAND_BUFFER_SIZE*sizeof(int));
+
+
 		new_ws->numcommands = 0;
 		new_ws->qhead = 0;
 		new_ws->qtail = 0;
 
 		GCALab_Global[GCALab_numWS] = new_ws;
 		/*init worker thread*/
-		new_ws->state = GCALAB_WS_STATE_PAUSED;
+		new_ws->state = GCALAB_WS_STATE_IDLE;
 		/*because the main thread updates the queue*/
 		pthread_mutex_init(&(new_ws->wslock),NULL);
 
@@ -1169,35 +877,122 @@ char GCALab_NewWorkSpace(int GCALimit)
 	}
 }
 
-char GCALab_QueueCommand(unsigned char ws_id,unsigned int command_id,unsigned int target_id,void *params)
+/*  GCALab_LockWS(): aquire a lock on the given workspace
+ */
+void GCALab_LockWS(unsigned char ws_id)
 {
-	return 0;
+	pthread_mutex_lock(&(GCALab_Global[ws_id]->wslock));
 }
 
-char GCALab_DequeueCommand(unsigned char ws_id,unsigned int index)
+/*  GCALab_UnLockWS(): release a lock on the given workspace
+ */
+void GCALab_UnLockWS(unsigned char ws_id)
 {
-	return 0;
+	pthread_mutex_unlock(&(GCALab_Global[ws_id]->wslock));
 }
 
+/* GCALab_QueueCommand(): appends the given command string to the command queue
+ *                        of the given workspace.
+ */
+char GCALab_QueueCommand(unsigned char ws_id,unsigned int command_id,unsigned int target_id,char **params,int numparams)
+{
+	unsigned int ind;
+	/*aquire lock on the workspace*/
+	GCALab_LockWS(ws_id);
+	if (WS(ws_id)->numcommands == GCALAB_COMMAND_BUFFER_SIZE)
+	{
+		GCALab_UnLockWS(ws_id);
+		return GCALAB_QUEUE_FULL;
+	}
+	ind = WS(ws_id)->qtail;
+	WS(ws_id)->commandqueue[ind] = command_id;
+	WS(ws_id)->commandtarget[ind] = target_id;
+	WS(ws_id)->commandparams[ind] = params;
+	WS(ws_id)->numparams[ind] = numparams;
+	WS(ws_id)->qtail = (WS(ws_id)->qtail+1)%GCALAB_COMMAND_BUFFER_SIZE;
+	WS(ws_id)->numcommands++;
+	GCALab_UnLockWS(ws_id);
+	return GCALAB_SUCCESS;
+}
+/* GCALab_CancelCommand(): cancels the the command located at address index of 
+ *                         the command queue of the given workspace.
+ */
+char GCALab_CancelCommand(unsigned char ws_id,unsigned int index)
+{
+	GCALab_LockWS(ws_id);
+	if ((index >= 0) && (index < GCALAB_COMMAND_BUFFER_SIZE))
+	{
+		WS(ws_id)->commandqueue[index] = GCALAB_NOP;
+		WS(ws_id)->commandtarget[index] = 0;
+		/*clean up parameter memory if there were any*/
+		if (WS(ws_id)->numparams[index] > 0)
+		{
+			free(WS(ws_id)->commandparams[index]);
+			WS(ws_id)->commandparams[index] = NULL;
+			WS(ws_id)->numparams[index] = 0;
+		}
+
+	}
+	GCALab_UnLockWS(ws_id);
+	return GCALAB_SUCCESS;
+}
+
+/* GCALab_ProcessCommandQueue(): Tells workspace to continue processing
+ */
 char GCALab_ProcessCommandQueue(unsigned char ws_id)
 {
-	return 0;
+	GCALab_LockWS(ws_id);
+	WS(ws_id)->state = GCALAB_WS_STATE_IDLE;
+	GCALab_UnLockWS(ws_id);
+	return GCALAB_SUCCESS;
 }
 
+/* GCALab_PrauseCommandQueue(): Tells workspace to halt processing
+ */
 char GCALab_PauseCommandQueue(unsigned char ws_id)
 {
-	return 0;
+	GCALab_LockWS(ws_id);
+	WS(ws_id)->state = GCALAB_WS_STATE_PAUSED;
+	GCALab_UnLockWS(ws_id);
+	return GCALAB_SUCCESS;
 }
 
+/* GCALab_PrintCommandQueue(): Tells workspace print all queued commands
+ */
+char GCALab_PrintCommandQueue(unsigned char ws_id)
+{
+	int i,j,k;
+	GCALab_LockWS(ws_id);
+	j = WS(ws_id)->qhead;
+	fprintf(stdout,"Priority\tCode\tTarget\t#Parameters\n");
+	fprintf(stdout,"-----------------------------------\n");
+	for(i=0;i < WS(ws_id)->numcommands;i++)
+	{
+		k = (i+j)%GCALAB_COMMAND_BUFFER_SIZE;
+		fprintf(stdout,"\t%d\t%u\t%u\t%d\n",i,WS(ws_id)->commandqueue[k],WS(ws_id)->commandtarget[k],WS(ws_id)->numparams[k]);
+	}
+	GCALab_UnLockWS(ws_id);
+	return GCALAB_SUCCESS;
+}
+
+/* GCALab_GetState(): gets the state flag of a workspace
+ */
 unsigned int GCALab_GetState(unsigned char ws_id)
 {
- 	return GCALab_Global[ws_id]->state;
+	unsigned int state;
+	GCALab_LockWS(ws_id);
+	state = GCALab_Global[ws_id]->state;
+	GCALab_UnLockWS(ws_id);
+ 	return state;
 }
 
+/* GCALab_SetState(): sets the state flag of a workspace safely
+ */
 void GCALab_SetState(unsigned char ws_id,unsigned int state)
 {
-	//pthread_mutex_lock(&());
-	//pthread_mutex_unlock(&());
+	GCALab_LockWS(ws_id);
+	GCALab_Global[ws_id]->state = state;
+	GCALab_UnLockWS(ws_id);
 	return;
 }
 
@@ -1210,22 +1005,80 @@ void GCALab_ShutDown(char rc)
 	/*if so then prompt the user*/
 	for (i=0;i<GCALab_numWS;i++)
 	{
-		GCALab_Global[i]->state = GCALAB_WS_STATE_EXITING;
+		GCALab_SetState(i,GCALAB_WS_STATE_EXITING);
 	}
 	pthread_exit(0);
 }
 
+/* GCALab_PrintHelp(): Prints the help menu
+ */
 void GCALab_PrintHelp(void)
 {
-	fprintf(stdout,"look at the code man...\n");
+	fprintf(stdout,"\nCommand List:\n");
+	fprintf(stdout,"-------------\n");
+	fprintf(stdout,"Command\t\targs\tDescription\n");
+	fprintf(stdout,"nwork\t\tn\tCreate a new workspace with enough slots to host n GCAs.\n");
+	fprintf(stdout,"printwork\tnone\tPrint current workspace.\n");
+	fprintf(stdout,"listallwork\tnone\tPrint summary of all workspaces.\n");
+	fprintf(stdout,"help\t\tnone\tPrints this help menu.\n");
+	fprintf(stdout,"chwork\t\tid\tChanges current workspace to be workspace id.\n");
+	fprintf(stdout,"q\t\tcmd\tEnqueues the GCA operation cmd in the current command queue.\n");
+	fprintf(stdout,"cancel\t\tcmd_id\tSets GCA operation cmd_id to be ignored.\n");
+	fprintf(stdout,"stopq\t\tnone\tThe current queue will pause after completion of the current operation.\n");
+	fprintf(stdout,"execq\t\tnone\tThe current queue will restart processing.\n");
+	fprintf(stdout,"printq\t\tnone\tPrints current queue.\n");
+	fprintf(stdout,"quit\t\tnone\tExits GCALab.\n");
+
 	return;
 }
 
+/* GCALab_PrintWorkSpace(): prints summart information about the 
+ *                          given workspace.
+ */
 char GCALab_PrintWorkSpace(unsigned char ws_id)
 {
-	return 0;
+	int i;
+
+	fprintf(stdout,"Work Space ID: %hhu\n",ws_id);
+	fprintf(stdout,"GCA (%d): ",GCALab_Global[ws_id]->numGCA);
+	for (i=0;i<GCALab_Global[ws_id]->numGCA;i++)
+	{
+		fprintf(stdout,"(%d,%u,%u) ",i,GCALab_Global[ws_id]->GCAList[i]->params->rule,GCALab_Global[ws_id]->GCAList[i]->params->N);
+	}
+	fprintf(stdout,"\n");
+	
+	fprintf(stdout,"Results (%d): ",GCALab_Global[ws_id]->numresults);
+	for (i=0;i<GCALab_Global[ws_id]->numresults;i++)
+	{
+		fprintf(stdout,"(%d,%d,%s)",i,GCALab_Global[ws_id]->results[i]->type,GCALab_Global[ws_id]->results[i]->id);
+	}
+	fprintf(stdout,"\n");
+
+	fprintf(stdout,"Queued Commands (%d):\n",GCALab_Global[ws_id]->numcommands);
+	fprintf(stdout,"Current State: ");
+	switch(GCALab_Global[ws_id]->state)
+	{
+		case GCALAB_WS_STATE_IDLE:
+			fprintf(stdout,"Idle\n");
+			break;
+		case GCALAB_WS_STATE_PROCESSING:
+			fprintf(stdout,"Running\n");
+			break;
+		case GCALAB_WS_STATE_PAUSED:
+			fprintf(stdout,"Paused\n");
+			break;
+		case GCALAB_WS_STATE_EXITING:
+			fprintf(stdout,"Quitting\n");
+			break;
+		case GCALAB_WS_STATE_ERROR:
+			fprintf(stdout,"Error\n");
+			break;
+	}
+	return GCALAB_SUCCESS;
 }
 
+/* GCALab_ListWorkSpaces(): Lists summary info about all work spaces
+ */
 char GCALab_ListWorkSpaces(void)
 {
 	int i;
@@ -1242,7 +1095,6 @@ char GCALab_ListWorkSpaces(void)
 				fprintf(stdout,"R\n");
 				break;
 			case GCALAB_WS_STATE_PAUSED:
-
 				fprintf(stdout,"P\n");
 				break;
 			case GCALAB_WS_STATE_EXITING:
@@ -1254,4 +1106,33 @@ char GCALab_ListWorkSpaces(void)
 		}
 	}
 	return GCALAB_SUCCESS;
+}
+
+
+/* strvncpy(): makes a copy of an array of strings 
+ */
+char** strvncpy(char **strv,int c, int n)
+{
+	char** strv_cp;
+	int i;
+
+	if(!(strv_cp = (char**)malloc(c*sizeof(char*))))
+	{
+		return NULL;
+	}
+
+	for (i=0;i<c;i++)
+	{
+		if(!(strv_cp[i] = (char*)malloc(n*sizeof(char))))
+		{
+			return NULL;
+		}
+	}
+
+	for (i=0;i<c;i++)
+	{
+		strncpy(strv_cp[i],strv[i],n);
+	}
+
+	return strv_cp;
 }

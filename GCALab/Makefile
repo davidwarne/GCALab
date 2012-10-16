@@ -7,7 +7,7 @@ SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vector
 OBJS = $(SRC:.c=.o)
 INC = -I../libMesh/ -I../libGCA/ -I./
 BIN = GCALab
-LIBS = -lm 
+LIBS = -lm -lpthread
 #PROFILE = -g -pg
 
 
