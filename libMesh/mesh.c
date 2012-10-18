@@ -1475,7 +1475,7 @@ mesh * CreateTorus(void)
 	InsertFace(m->fList,face,3);
 	return m;	
 }
-/* CreateTopology(): Creates a mesh that with at most numFaces Faces, 
+/* CreateMeshTopology(): Creates a mesh that with at most numFaces Faces, 
  *                   that is of the algebraic topology class if the 
  *                   given genus.
  * Parameters:
@@ -1486,7 +1486,7 @@ mesh * CreateTorus(void)
  * NOTE: For now, only genus-0 and genus-1 are supported
  * TODO: generalise to genus-n
  */
-mesh * CreateTopology(int numFaces,int genus)
+mesh * CreateMeshTopology(int numFaces,int genus)
 {
 	mesh *m;
 	switch(genus)

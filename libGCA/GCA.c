@@ -233,6 +233,37 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
 	return graph;
 }
 
+/* CreateCAParams(): Creates consistent parameters for a Graph Cellular Automata on a given 
+ *                   topology.
+ * Parameters:
+ *     m - the Geometry of the domain (which is used to derive topology)
+ *     rule_type - the type of rule that the rule code represents
+ *     rule - the rule code
+ *     ws - the window-size (i.e., the number of timesteps to store)
+ */
+CellularAutomatonParameters *CreateCAParams(mesh *m,unsigned char rule_type, unsigned char rule, unsigned int ws)
+{
+	CellularAutomatonParameters *params;
+
+	params = (CellularAutomatonParameters *)malloc(sizeof(CellularAutomatonParameters));
+	if (!params)
+	{
+		return NULL;
+	}
+
+	params->graph = GenerateTopology(&(params->N),&(params->k),m);
+	if (!(params->graph))
+	{
+		return NULL;
+	}
+
+	params->WSIZE = (ws == 0) ? DEFAULT_WINDOW_SIZE : ws;
+	params->rule_type = rule_type;
+	params->rule = rule;
+
+	return params;
+}
+
 /* CreateECA(): Creates a Graph representation of an Elementary Cellular 
  *              Automaton
  *
@@ -1366,7 +1397,7 @@ unsigned char isValid(GraphCellularAutomaton *GCA,chunk *config,unsigned char *f
  *   then accumulated accross the number of timesteps.  
  *   See C. Marr et. al.
  */
-float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pr)
+float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pm,float* logs_pm,float *S_im,unsigned char *TFm,unsigned int *cm)
 {
 	float *p,*logs_p,*S_i,S,T_inv,logs_inv;
 	unsigned char *TF;
@@ -1377,9 +1408,9 @@ float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pr)
 	WSIZE = GCA->params->WSIZE;
 	
 	/*for pr not NULL we assume that pr is correct size*/	
-	if(pr != NULL)
+	if(pm != NULL)
 	{
-		p = pr;
+		p = pm;
 	}
 	else
 	{
@@ -1391,32 +1422,57 @@ float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pr)
 	}
 	memset((void*)p,0,N*s*sizeof(float));
 	
-	count = (unsigned int *)malloc(N*s*sizeof(unsigned int));
-	if (!count)
+	if (cm != NULL)
 	{
-		return -1.0;
+		count = cm;
+	}
+	else
+	{
+		count = (unsigned int *)malloc(N*s*sizeof(unsigned int));
+		if (!count)
+		{
+			return -1.0;
+		}
 	}
 	memset((void*)count,0,N*s*sizeof(unsigned int));
 	
-	
-	TF = (unsigned char*)malloc(N*sizeof(unsigned int));
-	if (!TF)
+	if (TFm != NULL)
 	{
-		return -1.0;
+		TF = TFm;
 	}
-	
-	logs_p = (float *)malloc(N*s*sizeof(float));
-	if (!logs_p)
+	else
 	{
-		return -1.0;
+		TF = (unsigned char*)malloc(N*sizeof(unsigned int));
+		if (!TF)
+		{
+			return -1.0;
+		}
 	}
-	
-	S_i = (float *)malloc(N*sizeof(float));
-	if (!S_i)
+
+	if (logs_pm != NULL)
 	{
-		return -1.0;
+		logs_p = logs_pm;
 	}
-	
+	else
+	{
+		logs_p = (float *)malloc(N*s*sizeof(float));
+		if (!logs_p)
+		{
+			return -1.0;
+		}
+	}
+	if (S_im != NULL)
+	{
+		S_i = S_im;
+	}
+	else
+	{
+		S_i = (float *)malloc(N*sizeof(float));
+		if (!S_i)
+		{
+			return -1.0;
+		}
+	}
 	memset((void*)S_i,0,N*sizeof(float));
 	
 	/*run lead in period*/
@@ -1480,12 +1536,24 @@ float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pr)
 	S /= (float)N;
 	
 	/*clean up*/
-	free(TF);
-	free(logs_p);
-	free(S_i);
-	free(count);
+	if (TFm == NULL)
+	{
+		free(TF);
+	}
+	if (logs_pm == NULL)
+	{
+		free(logs_p);
+	}
+	if (S_im == NULL)
+	{
+		free(S_i);
+	}
+	if (cm == NULL)
+	{
+		free(count);
+	}
 	/*only free p if pr was not passed as a parameter*/
-	if (pr == NULL)
+	if (pm == NULL)
 	{
 		free(p);
 	}
@@ -1507,7 +1575,7 @@ float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pr)
  *   the state counts are then accumulated accross the number of timesteps.
  *   See C. Marr et. al.
  */
-float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pr)
+float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* logs_pm,float *W_im,unsigned char *TFm, unsigned int *cm,unsigned int *wlm)
 {
 	float *p,*logs_p,*W_i,W,T_inv,logs_inv;
 	unsigned char *TF;
@@ -1517,9 +1585,9 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pr)
 	WSIZE = GCA->params->WSIZE;
 	s = GCA->params->s;
 	
-	if (pr != NULL)
+	if (pm != NULL)
 	{
-		p = pr;
+		p = pm;
 	}
 	else
 	{
@@ -1531,32 +1599,73 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pr)
 		memset((void*)p,0,N*T*sizeof(float));
 	}
 
-	logs_p = (float *)malloc(N*T*sizeof(float));
-	if (!logs_p)
+	if (logs_pm != NULL)
 	{
-		return -1.0;
+		logs_p = logs_pm;
+	}
+	else
+	{
+		logs_p = (float *)malloc(N*T*sizeof(float));
+		if (!logs_p)
+		{
+			return -1.0;
+		}
 	}
 
-	W_i = (float *)malloc(N*sizeof(float));
-	if (!W_i)
+	if (W_im != NULL)
 	{
-		return -1.0;
+		W_i = W_im;
+	}
+	else
+	{
+		W_i = (float *)malloc(N*sizeof(float));
+		if (!W_i)
+		{
+			return -1.0;
+		}
 	}
 	memset((void*)W_i,0,N*sizeof(float));
 
-	TF = (unsigned char*)malloc(N*sizeof(unsigned char));
-	if (!TF)
+	if (TFm != NULL)
 	{
-		return -1.0;
+		TF = TFm;
+	}
+	else
+	{
+		TF = (unsigned char*)malloc(N*sizeof(unsigned char));
+		if (!TF)
+		{
+			return -1.0;
+		}
 	}
 	memset((void*)TF,0,N*sizeof(unsigned int));
 	
-	word_lengths = (unsigned int*)malloc(N*sizeof(unsigned int));
-	if (!word_lengths)
+	if (wlm != NULL)
 	{
-		return -1.0;
-	} 
+		word_lengths = wlm;
+	}
+	else
+	{
+		word_lengths = (unsigned int*)malloc(N*sizeof(unsigned int));
+		if (!word_lengths)
+		{	
+			return -1.0;
+		}
+	}
 
+	if (cm != NULL)
+	{
+		count = cm;
+	}
+	else
+	{
+		count = (unsigned int *)malloc(N*T*sizeof(unsigned int));
+		if (!count)
+		{
+			return -1.0;
+		}
+	}
+	memset((void*)count,0,N*s*sizeof(unsigned int));
 	/*initialise word lengths at 1*/
 	for (i=0;i<N;i++)
 	{
@@ -1633,12 +1742,28 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pr)
 	W /= (float)N;
 	
 	/*clean up*/
-	free(TF);
-	free(logs_p);
-	free(W_i);
-	free(count);
+	if (TFm == NULL)
+	{
+		free(TF);
+	}
+	if (logs_pm == NULL)
+	{
+		free(logs_p);
+	}
+	if (W_im == NULL)
+	{
+		free(W_i);
+	}
+	if (cm == NULL)
+	{
+		free(count);
+	}
+	if (wlm == NULL)
+	{
+		free(word_lengths);
+	}
 	/*only free p if pr was not passed as a parameter*/
-	if (pr == NULL)
+	if (pm == NULL)
 	{
 		free(p);
 	}
@@ -1938,7 +2063,7 @@ float *ComputeExactProbs(GraphCellularAutomaton *GCA)
  * Note: Input entropy is the Shannon entropy of the lookup table fequency histogram
  *       taken over WSIZE timesteps. See A. Weunsche
  */
-float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float* sigma)
+float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float* sigma,unsigned int *Qm, float *logQm,float *IEm)
 {
 	unsigned int *Q;
 	float *logQ;
@@ -1956,21 +2081,43 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	w = GCA->params->WSIZE;
 	n = GCA->LUT_size;
 	numLookups = n*w;
-	Q = (unsigned int *)malloc(n*sizeof(unsigned int));
-	if (!Q)
+	if (Qm != NULL)
 	{
-		return NULL;
+		Q = Qm;
+	}
+	else
+	{
+		Q = (unsigned int *)malloc(n*sizeof(unsigned int));
+		if (!Q)
+		{
+			return NULL;
+		}
 	}
 
-	logQ = (float*)malloc(n*sizeof(unsigned int));
-	if (!logQ)
+	if (logQm != NULL)
 	{
-		return NULL;
+		logQ = logQm;
 	}
-	IE = (float*)malloc(T*sizeof(float));
-	if (!IE)
+	else
 	{
-		return NULL;
+		logQ = (float*)malloc(n*sizeof(unsigned int));
+		if (!logQ)
+		{
+			return NULL;
+		}
+	}
+
+	if (IEm != NULL)
+	{
+		IE = IEm;
+	}
+	else
+	{
+		IE = (float*)malloc(T*sizeof(float));
+		if (!IE)
+		{
+			return NULL;
+		}
 	}
 
 	inv_logn = 1.0/log(n);
@@ -1980,7 +2127,7 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	for (t=0;t<T;t++)
 	{
 		/*reset the histogram*/
-		memset((void*)Q,0,w*n*sizeof(unsigned int));
+		memset((void*)Q,0,n*sizeof(unsigned int));
 		IE[t] = 0.0;
 		/*accumulate the LUT histogram*/
 		CANextStep(GCA);
@@ -2021,8 +2168,14 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	}
 	*sigma /= (float)T;
 	*sigma = sqrt(*sigma);
-	free(logQ);
-	free(Q);
+	if (logQm == NULL)
+	{
+		free(logQ);
+	}
+	if (Qm == NULL)
+	{
+		free(Q);
+	}
 	return IE;
 }
 

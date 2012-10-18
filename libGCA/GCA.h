@@ -133,7 +133,9 @@ struct GraphCellularAutomaton_struct
 /*function prototypes*/
 
 /*CA creation functions*/
+
 unsigned int *GenerateTopology(unsigned int *N,unsigned char *k, mesh *m);
+CellularAutomatonParameters *CreateCAParams(mesh *m,unsigned char rule_type, unsigned char rule, unsigned int ws);
 GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule);
 GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params);
 GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA);
@@ -160,11 +162,11 @@ unsigned char IsGOE(GraphCellularAutomaton *GCA);
 unsigned char isValid(GraphCellularAutomaton *GCA,chunk *config,unsigned char *flags);
 
 /*Analysis functions*/
-float ShannonEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pr);
-float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pr);
+float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pm,float* logs_pm,float *S_im,unsigned char *TFm,unsigned int *cm);
+float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* logs_pm,float *W_im,unsigned char *TFm, unsigned int *cm,unsigned int *wlm);
 unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk *preImages,unsigned int n);
 float* ComputeExactProbs(GraphCellularAutomaton *GCA);
-float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float *mu, float *sigma); 
+float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float* sigma,unsigned int *Qm, float *logQm,float *IEm);
 float lambda_param(GraphCellularAutomaton *GCA);
 float Z_param(GraphCellularAutomaton *GCA);
 unsigned int G_density(GraphCellularAutomaton *GCA,chunk* ics, unsigned int n);

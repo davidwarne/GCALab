@@ -38,6 +38,10 @@
  *       v 0.06 (16/10/2012) - i. commands for queue management implemented.
  *                             ii. Began work on main compute routine.
  *                             iii. Removed legacy code
+ *       v 0.07 (18/10/2012) - i. Implemented gca creation commands
+ *                             ii. Implemented Entropy commands
+ *                             iii. Implemented parameter commands
+ *                             iv. Implement pre-image comput command
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -105,6 +109,7 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 	
 	while(1)
 	{
+		int i;
 		/*get user input*/
 		userinput = GCALab_CommandPrompt(&numargs);
 		/*ensure input is valid*/
@@ -113,7 +118,7 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 		
 		cmd = userinput[0];
 
-		if (!strcmp(cmd,"nwork"))
+		if (!strcmp(cmd,"new-work"))
 		{
 			int lim;
 			if (numargs < 2)
@@ -129,12 +134,12 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 				printf("New Workspace create! ID = %d\n",cur_ws);
 			}
 		}
-		else if(!strcmp(cmd,"printwork"))
+		else if(!strcmp(cmd,"print-work"))
 		{
 			rc = GCALab_PrintWorkSpace(cur_ws);
 			GCALab_HandleErr(rc);
 		}
-		else if (!strcmp(cmd,"listallwork"))
+		else if (!strcmp(cmd,"list-work"))
 		{
 			rc = GCALab_ListWorkSpaces();
 			GCALab_HandleErr(rc);
@@ -143,7 +148,7 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 		{
 			GCALab_PrintHelp();
 		}
-		else if (!strcmp(cmd,"chwork"))
+		else if (!strcmp(cmd,"ch-work"))
 		{
 			if (numargs < 2)
 			{
@@ -163,7 +168,7 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 				fprintf(stdout,"Current Workspace is ID = %d\n",cur_ws);
 			}
 		}
-		else if (!strcmp(cmd,"q"))
+		else if (!strcmp(cmd,"q-cmd"))
 		{
 			if (numargs < 3)
 			{
@@ -193,7 +198,7 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 				GCALab_HandleErr(rc);
 			}
 		}
-		else if (!strcmp(cmd,"cancel"))
+		else if (!strcmp(cmd,"del-cmd"))
 		{
 			
 			if (numargs < 2)
@@ -208,20 +213,47 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 				GCALab_HandleErr(rc);
 			}
 		}
-		else if (!strcmp(cmd,"execq"))
+		else if (!strcmp(cmd,"exec-q"))
 		{
 			rc = GCALab_ProcessCommandQueue(cur_ws);
 			GCALab_HandleErr(rc);
 		}
-		else if (!strcmp(cmd,"stopq"))
+		else if (!strcmp(cmd,"stop-q"))
 		{
 			rc = GCALab_PauseCommandQueue(cur_ws);
 			GCALab_HandleErr(rc);
 		}
-		else if(!strcmp(cmd,"printq"))
+		else if(!strcmp(cmd,"print-q"))
 		{
 			rc = GCALab_PrintCommandQueue(cur_ws);
 			GCALab_HandleErr(rc);
+		}
+		else if (!strcmp(cmd,"print-ca"))
+		{
+			if (numargs < 2)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				unsigned int id;
+				id = (unsigned int)atoi(userinput[1]);
+				rc = GCALab_PrintCA(cur_id,id);
+			}
+				
+		}
+		else if (!strcmp(cmd,"print-results"))
+		{
+			if (numargs < 2)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				unsigned int id;
+				id = (unsigned int)atoi(userinput[1]);
+				rc = GCALab_PrintResults(cur_id,id);
+			}
 		}
 		else if(!strcmp(cmd,"quit"))
 		{
@@ -231,7 +263,13 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 		{
 			fprintf(stderr,"Unknown Command [%s], type help for guidence\n",cmd);
 		}
-
+		
+		/*clean up user args*/
+		for (i=0;i<numargs;i++)
+		{
+			free(userinput[i]);
+		}
+		free(userinput);
 	}
 }
 
@@ -315,8 +353,8 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 {
 }
 
-/* GCALab_BatchMode(): Runs Commands is batch mode
- * TODO: support a Job queue
+/* GCALab_BatchMode(): Runs Commands is batch mode, 
+ *                     i.e., reads commands from a file
  */
 char GCALab_BatchMode(GCALab_CL_Options* opts)
 {
@@ -369,6 +407,7 @@ void * GCALab_Worker(void *params)
 {
 	unsigned char ws_id;
 	unsigned char exit,error;
+	char rc;
 	ws_id = (unsigned int)(unsigned long long)params;
 
 	exit = 0;
@@ -382,10 +421,13 @@ void * GCALab_Worker(void *params)
 				error = 1;
 				break;
 			case GCALAB_WS_STATE_PAUSED:
+				/*just rest for a while*/
+				sleep(1);
 				break;
 			case GCALAB_WS_STATE_PROCESSING:
 				/*the next command*/
-				GCALab_DoNextCommand(ws_id);
+				rc = GCALab_DoNextCommand(ws_id);
+				if (rc <=0 ) GCALab_SetState(ws_id,GCALAB_WS_STATE_ERROR);
 				if (GCALab_GetState(ws_id) == GCALAB_WS_STATE_PROCESSING)
 				{
 					GCALab_SetState(ws_id,GCALAB_WS_STATE_IDLE);
@@ -428,20 +470,35 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 	int nparams;
 	int index,i;
 	char **params;
+	char rc;
 	GCALabOutput *res;
 
 	res = NULL;
 	
 	GCALab_LockWS(ws_id);
+	/*get command data*/
 	index = WS(ws_id)->qhead;
 	cmd_id = WS(ws_id)->commandqueue[index];
 	trgt_id = WS(ws_id)->commandtarget[index];
 	nparams = WS(ws_id)->numparams[index];
 	params = strvncpy(WS(ws_id)->commandparams[index],nparams,GCALAB_MAX_STRLEN);
+	/*remove command from queue*/
+	WS(ws_id)->qhead = (WS(ws_id)->qhead+1)%GCALAB_COMMAND_BUFFER_SIZE;
+	WS(ws_id)->numcommands--;
+	if (nparams != 0)
+	{
+		WS(ws_id)->numparams[index] = 0;
+		for(i=0;i<nparams;i++)
+		{
+			free(WS(ws_id)->commandparams[index][i]);
+		}
+		free(WS(ws_id)->commandparams[index]);
+	}
 	GCALab_UnLockWS(ws_id);
 
 	/*do processing*/
-	switch(cmd)
+	/*TODO: tidy up the command switch stuff, not so important for now*/
+	switch(cmd_id)
 	{
 		case GCALAB_NOP:
 			return GCALAB_SUCCESS;
@@ -475,7 +532,7 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 				{
 					gca_res_flag = 0;
 				}
-				else if (!strcmp(para,s[i],"-g"))
+				else if (!strcmp(params[i],"-g"))
 				{
 					gca_res_flag = 1;
 				}
@@ -511,24 +568,516 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 		case GCALAB_GCA:
 		{
 			char *meshfile;
-			unsigned int NCells,genus,windowsize;
-			unsigned char rule_type,rule_code,s,k,eca;
+			unsigned int NCell,genus,windowsize;
+			unsigned char r_type,r,s,k,eca;
+			GraphCellularAutomaton *GCA;
+			CellularAutomatonParameters *CAparams;
+			mesh *m;
+
+			windowsize = 0;
+			meshfile = NULL;
+			eca = 0;
+			for (i=0;i<nparams;i++)
+			{
+				if(!strcmp(params[i],"-m"))
+				{
+					meshfile = params[++i];
+				}
+				else if(!strcmp(params[i],"-t"))
+				{
+					NCell = (unsigned int)atoi(params[++i]);
+					genus = (unsigned int)atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-r"))
+				{
+					r_type = (unsigned char)atoi(params[++i]);
+					r = (unsigned char)atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-s"))
+				{
+					s = (unsigned char)atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-w"))
+				{
+					windowsize = (unsigned int)atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-eca"))
+				{
+					NCell = (unsigned int)atoi(params[++i]);
+					k = (unsigned char)atoi(params[++i]);
+					r = (unsigned char)atoi(params[++i]);
+					eca = 1;
+				}
+			}
+
+			if (eca)
+			{
+				/*create an elementary CA with N cells, k-neighbourhood and wolram code r*/
+				GCA = CreateECA(NCell,k,r);
+				rc = GCALab_TestPointer((void*)GCA);
+				if (rc <= 0)
+				{
+					return rc;
+				}
+			}
+			else
+			{
+				if (meshfile)
+				{
+				}
+				else
+				{
+					m = CreateMeshTopology(NCell,genus);
+					rc = GCALab_TestPointer((void*)m);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					CAparams = CreateCAParams(m,r_type,r,windowsize);
+					rc = GCALab_TestPointer((void*)CAparams);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					GCA = CreateGCA(CAparams);
+					rc = GCALab_TestPointer((void*)GCA);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+				}
+			}
+			
+			WS(ws_id)->GCAList[WS(ws_id)->numGCA] = GCA;
+			WS(ws_id)->GCAGeometry[WS(ws_id)->numGCA] = m;
+			WS(ws_id)->numGCA++;
 		}
 			break;
 		case GCALAB_ENTROPY:
 		{
 			unsigned int numSamples;
-			unsigned int type;
+			unsigned int T;
+			unsigned type;
+			chunk range[2];
+			GraphCellularAutomaton *GCA;
+	
+			float *p,*logs_p, *S_i,*pt,*logs_pt,*IE,*logQ;
+			unsigned char *flags;
+			unsigned int *count,*countt,*wl,*Q;
+	
+			float S_mu,W_mu,I_mu,I_sigma;
+			float* result_data;
+			numSamples = 1;
+			type = GCALAB_SHANNON_ENTROPY;
+			for (i=0;i<nparams;i++)
+			{
+				if (!strcmp(params[i],"-n"))
+				{
+					numSamples = (unsigned int)atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-t"))
+				{
+					T = (unsigned int)atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-e"))
+				{
+					type = (unsigned int)atoi(params[++i]);
+				}
+				else if (!strcmp(params[i],"-l"))
+				{
+					range[0] = (chunk)atoi(params[++i]);
+					range[1] = (chunk)atoi(params[++i]);
+				}
+			}
+
+			/*Grab a reference to the CA we want to play with*/
+			GCA = WS(ws_id)->GCAList[trgt_id];
+			res = (GCALabOutput*)malloc(sizeof(GCALabOutput)); 
+			switch(type)
+			{
+				case GCALAB_SHANNON_ENTROPY:
+					/*allocate memory first reduce malloc calls*/
+					p = (float*)malloc((GCA->params->N)*((unsigned int)GCA->params->s)*sizeof(float));
+					logs_p = (float*)malloc((GCA->params->N)*((unsigned int)GCA->params->s)*sizeof(float));
+					S_i = (float*)malloc((GCA->params->N)*sizeof(float));
+					flags = (unsigned char*)malloc((GCA->params->N)*sizeof(unsigned char));
+					count = (unsigned int*)malloc((GCA->params->N)*((unsigned int)GCA->params->s)*sizeof(unsigned int));
+
+					rc = GCALab_TestPointer((void*)p);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)logs_p);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)S_i);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)flags);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)count);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+			
+					/*compute avg Shannon entropy*/
+					S_mu = 0.0;
+					for (i=0;i<numSamples;i++)
+					{
+						ResetCA(GCA);
+						SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+						S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
+					}
+
+					S_mu = S_mu/((float)numSamples);
+					/*store outputs*/
+					res->type = FLOAT32;
+					sprintf(res->id,"%d(%d):S",cmd_id,trgt_id);
+					res->datalen = 1;
+					result_data = (float*)malloc(sizeof(float));
+					result_data[0] = S_mu;
+					res->data = (void*)result_data;
+
+					/*clean up*/	
+					free(p);
+					free(logs_p);
+					free(S_i);
+					free(flags);
+					free(count);
+					break;
+				case GCALAB_WORD_ENTROPY:
+					/*allocate memory first reduce malloc calls*/
+					pt = (float*)malloc((GCA->params->N)*T*sizeof(float));
+					logs_pt = (float*)malloc((GCA->params->N)*T*sizeof(float));
+					S_i = (float*)malloc((GCA->params->N)*sizeof(float));
+					flags = (unsigned char*)malloc((GCA->params->N)*sizeof(unsigned char));
+					countt = (unsigned int*)malloc((GCA->params->N)*T*sizeof(unsigned int));
+					wl = (unsigned int*)malloc((GCA->params->N)*sizeof(unsigned int));
+
+					rc = GCALab_TestPointer((void*)pt);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)logs_pt);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)S_i);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)flags);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)countt);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)wl);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+
+					/*compute avg word entropy*/
+					W_mu = 0.0;
+					for (i=0;i<numSamples;i++)
+					{
+						ResetCA(GCA);
+						SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+						W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
+					}
+
+					W_mu = W_mu/((float)numSamples);
+					/*store outputs*/
+					res->type = FLOAT32;
+					sprintf(res->id,"%d(%d):W",cmd_id,trgt_id);
+					res->datalen = 1;
+					result_data = (float*)malloc(sizeof(float));
+					result_data[0] = W_mu;
+					res->data = (void*)result_data;
+
+					/*clean up*/	
+					free(pt);
+					free(logs_pt);
+					free(S_i);
+					free(flags);
+					free(countt);
+					free(wl);
+					break;
+				case GCALAB_INPUT_ENTROPY:
+					/*allocate memory first reduce malloc calls*/
+					Q =  (unsigned int *)malloc((GCA->LUT_size)*sizeof(unsigned int));
+					logQ = (float *)malloc((GCA->LUT_size)*sizeof(float));
+					IE = (float *) malloc(T*sizeof(unsigned int));
+
+					rc = GCALab_TestPointer((void*)Q);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)logQ);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)IE);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+
+					/*compute avg and varience of I*/
+					ResetCA(GCA);
+					SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+					InputEntropy(GCA,T,&I_mu,&I_sigma,Q,logQ,IE);	
+					/*store outputs*/
+					res->type = FLOAT32;
+					sprintf(res->id,"%d(%d):I",cmd_id,trgt_id);
+					res->datalen = T+2;
+					result_data = (float*)malloc((T+2)*sizeof(float));
+					result_data[0] = I_mu;
+					result_data[1] = I_sigma;
+					for (i=0;i<T;i++)
+					{
+						result_data[i+2] = IE[i];
+					}
+					res->data = (void*)result_data;
+					/*clean up*/	
+					free(Q);
+					free(logQ);
+					free(IE);
+					break;
+				case GCALAB_ALL_ENTROPY:
+					/*allocate memory first reduce malloc calls*/
+					p = (float*)malloc((GCA->params->N)*((unsigned int)GCA->params->s)*sizeof(float));
+					logs_p = (float*)malloc((GCA->params->N)*((unsigned int)GCA->params->s)*sizeof(float));
+					S_i = (float*)malloc((GCA->params->N)*sizeof(float));
+					flags = (unsigned char*)malloc((GCA->params->N)*sizeof(unsigned char));
+					count = (unsigned int*)malloc((GCA->params->N)*((unsigned int)GCA->params->s)*sizeof(unsigned int));
+					pt = (float*)malloc((GCA->params->N)*T*sizeof(float));
+					logs_pt = (float*)malloc((GCA->params->N)*T*sizeof(float));
+					countt = (unsigned int*)malloc((GCA->params->N)*T*sizeof(unsigned int));
+					wl = (unsigned int*)malloc((GCA->params->N)*sizeof(unsigned int));
+					Q =  (unsigned int *)malloc((GCA->LUT_size)*sizeof(unsigned int));
+					logQ = (float *)malloc((GCA->LUT_size)*sizeof(float));
+					IE = (float *) malloc(T*sizeof(unsigned int));
+					rc = GCALab_TestPointer((void*)p);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)logs_p);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)S_i);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)flags);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)count);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)pt);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)logs_pt);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)countt);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)wl);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)Q);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)logQ);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					rc = GCALab_TestPointer((void*)IE);
+					if (rc <= 0)
+					{
+						return rc;
+					}
+					
+					/*compute avg Shannon entropy*/
+					S_mu = 0.0;
+					for (i=0;i<numSamples;i++)
+					{
+						ResetCA(GCA);
+						SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+						S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
+					}
+
+					S_mu = S_mu/((float)numSamples);
+					
+					/*compute avg word entropy*/
+					W_mu = 0.0;
+					for (i=0;i<numSamples;i++)
+					{
+						ResetCA(GCA);
+						SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+						W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
+					}
+
+					W_mu = W_mu/((float)numSamples);
+					
+					/*compute avg and varience of I*/
+					ResetCA(GCA);
+					SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+					InputEntropy(GCA,T,&I_mu,&I_sigma,Q,logQ,IE);	
+					/*store outputs*/
+					res->type = FLOAT32;
+					sprintf(res->id,"%d(%d):SWI",cmd_id,trgt_id);
+					res->datalen = T+4;
+					result_data = (float*)malloc((T+4)*sizeof(float));
+					result_data[0] = S_mu;
+					result_data[1] = W_mu;
+					result_data[2] = I_mu;
+					result_data[3] = I_sigma;
+					for (i=0;i<T;i++)
+					{
+						result_data[i+4] = IE[i];
+					}
+					res->data = (void*)result_data;
+					/*clean up*/	
+					free(p);
+					free(logs_p);
+					free(S_i);
+					free(flags);
+					free(count);
+					free(pt);
+					free(logs_pt);
+					free(countt);
+					free(wl);
+					free(Q);
+					free(logQ);
+					free(IE);
+					break;
+			}
+
 		}
 			break;
 		case GCALAB_PARAM:
 		{
 			unsigned int type;
+			chunk range[2];
+			float lambdap,Zp;
+			unsigned int Gp;
+			GraphCellularAutomaton *GCA;
+			for (i=0;i<nparams;i++)
+			{
+				if (!strcmp(params[i],"-p"))
+				{
+					type = (unsigned int )atoi(params[++i]);
+				}
+				else if(!strcmp(params[i],"-l"))
+				{
+					range[0] = (chunk)atoi(params[++i]);
+					range[1] = (chunk)atoi(params[++i]);
+				}
+			}
+
+			/*Grab a reference to the CA we want to play with*/
+			GCA = WS(ws_id)->GCAList[trgt_id];
+			res = (GCALabOutput*)malloc(sizeof(GCALabOutput)); 
+			
+			switch(type)
+			{
+				case GCALAB_LAMBDA:
+				{
+					float *result_data;
+					lambdap = lambda_param(GCA);
+					/*store outputs*/
+					res->type = FLOAT32;
+					sprintf(res->id,"%d(%d):L",cmd_id,trgt_id);
+					res->datalen = 1;
+					result_data = (float*)malloc(sizeof(float));
+					result_data[0] = lambdap;
+					res->data = (void*)result_data;
+				}	
+					break;
+				case GCALAB_Z:
+				{
+					float *result_data;
+					Zp = Z_param(GCA);
+					/*store outputs*/
+					res->type = FLOAT32;
+					sprintf(res->id,"%d(%d):Z",cmd_id,trgt_id);
+					res->datalen = 1;
+					result_data = (float*)malloc(sizeof(float));
+					result_data[0] = Zp;
+					res->data = (void*)result_data;
+				}
+					break;
+				case GCALAB_G:
+				{
+					unsigned int *result_data;
+					Gp = G_density(GCA,range,0);
+					/*store outputs*/
+					res->type = UINT32;
+					sprintf(res->id,"%d(%d):G",cmd_id,trgt_id);
+					res->datalen = 1;
+					result_data = (unsigned int*)malloc(sizeof(unsigned int));
+					result_data[0] = Gp;
+					res->data = (void*)result_data;
+				}
+					break;
+			}
 		}
 			break;
 		case GCALAB_REVERSE:
 		{
+			unsigned int numPreImages;
+			chunk *preImages;
+			GraphCellularAutomaton *GCA;
+			/*Grab a reference to the CA we want to play with*/
+			GCA = WS(ws_id)->GCAList[trgt_id];
+			res = (GCALabOutput*)malloc(sizeof(GCALabOutput)); 
 			
+			preImages = CAGetPreImages(GCA,&numPreImages,NULL);
+			res->type = CHUNK;
+			sprintf(res->id,"%d(%d):R",cmd_id,trgt_id);
+			res->datalen = numPreImages*(GCA->size);
+			res->data = (void*)preImages;
 		}
 			break;
 	}
@@ -541,8 +1090,6 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 	free(params);
 	
 	GCALab_LockWS(ws_id);
-	WS(ws_id)->qhead = (WS(ws_id)->qhead+1)%GCALAB_COMMAND_BUFFER_SIZE;
-	WS(ws_id)->numcommands--;
 	if (res != NULL)
 	{
 		if (WS(ws_id)->numresults < GCALAB_MAX_RESULTS)
@@ -964,6 +1511,7 @@ char GCALab_PrintCommandQueue(unsigned char ws_id)
 	int i,j,k;
 	GCALab_LockWS(ws_id);
 	j = WS(ws_id)->qhead;
+	fprintf(stdout,"%d %d\n",WS(ws_id)->qhead,WS(ws_id)->qtail);
 	fprintf(stdout,"Priority\tCode\tTarget\t#Parameters\n");
 	fprintf(stdout,"-----------------------------------\n");
 	for(i=0;i < WS(ws_id)->numcommands;i++)
@@ -1108,6 +1656,31 @@ char GCALab_ListWorkSpaces(void)
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_PrintCA(): Prints Details of Selected CA including the current configuration
+ */
+char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id)
+{
+	GraphCellularAutomaton *GCA;
+	if (gca_id < 0 || gca_id >= WS(ws_id)->numGCA)
+	{
+		return GCALAB_INVALID_OPTION;
+	}
+
+	GCA = WS(ws_id)->GCAList[gca_id];
+
+	fprintf(stdout,"#Cells: %d\n",GCA->params->N);
+	fprintf(stdout,"k-neighbourhood: %d\n",GCA->params->k);
+	//CONTINUE:fprintf()
+	
+	return GCALAB_SUCCESS;
+}
+
+/* GCALab_PrintResults(): Prints compute results
+ */
+char GCALab_PrintResult(unsigned char ws_id,unsigned int res_id)
+{
+	return GCALAB_SUCCESS;
+}
 
 /* strvncpy(): makes a copy of an array of strings 
  */

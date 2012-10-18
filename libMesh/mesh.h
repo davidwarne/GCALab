@@ -137,7 +137,7 @@ float * GeometricCentre(mesh *m);
 /*Topology generation*/
 mesh * CreateIcosahedron(void);
 mesh * CreateTorus(void);
-mesh * CreateTopology(int numFaces,int genus);
+mesh * CreateMeshTopology(int numFaces,int genus);
 
 /*I/O functions*/
 mesh * LoadMesh(char *filename,unsigned char format);

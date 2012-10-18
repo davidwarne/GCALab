@@ -99,6 +99,15 @@
 #define GCALAB_PARAM	6
 #define GCALAB_REVERSE	7
 
+#define GCALAB_SHANNON_ENTROPY 	0
+#define GCALAB_WORD_ENTROPY 	1
+#define GCALAB_INPUT_ENTROPY 	2
+#define GCALAB_ALL_ENTROPY 		3
+
+#define GCALAB_LAMBDA 	0
+#define GCALAB_Z 		1
+#define GCALAB_G		3
+
 #define WS(a) GCALab_Global[(a)]
 
 typedef struct GCALab_CL_Options_struct GCALab_CL_Options;
@@ -174,6 +183,8 @@ char **GCALab_CommandPrompt(int *numargs);
 char GCALab_PrintWorkSpace(unsigned char ws_id);
 char GCALab_ListWorkSpaces(void);
 void GCALab_PrintHelp(void);
+char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id);
+char GCALab_PrintResult(unsigned char ws_id,unsigned int res_id);
 
 void GCALab_SplashScreen(void);
 void GCALab_PrintLicense(void);
