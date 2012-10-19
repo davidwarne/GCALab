@@ -16,6 +16,8 @@
  
 #include "GCALab_fio.h"
 
+char *GCALab_fio_format[14] = {"%f","%lf","%hhu","%hu","%u","%llu","%hhd","%hd","%d","%lld","%hhx","%hx","%x","%llx"};
+
 /* GCALAB_saveCA(): Writes CA data to a file
  *
  * Parameters:
@@ -26,16 +28,20 @@
  *   This function will NOT write any spatio-temporal information, only sufficient
  *   information to define the rule.
  */ 
-char GCALAB_saveCA(char *filename,GraphCellularAutomaton *GCA)
+char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m)
 {
 	FILE* fp;
 	unsigned int i,j;
-	
+	char lutfile[255],meshfile[255],graphfile[255];
 	if (!(fp = fopen(filename,"w")))
 	{
 		return WRITE_FAILED;
 	}
 	
+	sprintf(lutfile,"%s.lut",filename);
+	sprintf(meshfile,"%s.off",filename);
+	sprintf(graphfile,"%s.top",filename);
+
 	fprintf(fp,"#\n# Created by GCALab.\n#\n");
 	fprintf(fp,"#\n#CA Parameters\n#\n");
 	fprintf(fp,"N : %d\n",GCA->params->N);
@@ -43,52 +49,59 @@ char GCALAB_saveCA(char *filename,GraphCellularAutomaton *GCA)
 	fprintf(fp,"k : %u\n",GCA->params->k);
 	fprintf(fp,"type : %u\n",GCA->params->rule_type);
 	fprintf(fp,"rule : %u\n",GCA->params->rule);
-	fprintf(fp,"WSIZE: %d\n",GCA->params->WSIZE);
-	fprintf(fp,"#\n# rule Look-up table (LUT)\n#\n");
+	fprintf(fp,"WSIZE : %d\n",GCA->params->WSIZE);
+	fprintf(fp,"LUT : %s\n",lutfile);
+	fprintf(fp,"topology : %s\n",graphfile);
+	if (m != NULL)
+	{
+		fprintf(fp,"mesh : %s\n",meshfile);
+	}
+	fclose(fp);
+
+    	
+	if (!(fp = fopen(lutfile,"w")))
+	{
+		return WRITE_FAILED;
+	}
+
 	for (i=0;i<GCA->LUT_size;i++)
 	{
-		fprintf(fp,"LUT[%u] : %u\n",i,GCA->ruleLUT[i]);
+		fprintf(fp,"%u,%u\n",i,GCA->ruleLUT[i]);
 	}
-	fprintf(fp,"#\n# Initial conditions\n#\n");
-	fprintf(fp,"IC : ");
-	for (i=0;i<GCA->size;i++)
+	fclose(fp);
+	
+
+	if (!(fp = fopen(graphfile,"w")))
 	{
-#if CHUNK_SIZE_BITS == 64
-		fprintf(fp,"%016x",GCA->config[i]);
-#elif CHUNK_SIZE_BITS == 32
-		fprintf(fp,"%08x",GCA->config[i]);
-#elif CHUNK_SIZE_BITS == 16
-		fprintf(fp,"%04x",GCA->config[i]);
-#elif CHUNK_SIZE_BITS == 8
-		fprintf(fp,"%02x",GCA->config[i]);
-#endif
+		return WRITE_FAILED;
 	}
-	fprintf(fp,"\n");
-	fprintf(fp,"#\n# Topology\n#\n");
 	for (i=0;i<GCA->params->N;i++)
 	{
-		fprintf(fp,"U%d :",i);
+		fprintf(fp,"%d",i);
 		for (j=0;j<GCA->params->k-1;j++)
 		{
-			fprintf(fp," %d",GCA->params->graph[i*(GCA->params->k-1) +j]);
+			fprintf(fp,",%d",GCA->params->graph[i*(GCA->params->k-1) +j]);
 		}
 		fprintf(fp,"\n");
 	}
 	fclose(fp);
+	if (m != NULL)
+	{
+		SaveMesh(meshfile,m,OFF_FORMAT);
+	}
 	return WRITE_SUCCESS;
 };
 
-char GCALAB_appendData(char* filename,char * name, void * data, int N,unsigned char type)
+char GCALab_fio_saveData(char* filename,char * name, void * data, int N,unsigned char type)
 {
 	FILE* fp;
 	int i;
-	
-	if (!(fp = fopen(filename,"a")))
+
+	if (!(fp = fopen(filename,"w")))
 	{
 		return WRITE_FAILED;
 	}
 	
-	fprintf(fp,"%s :",name);
 	switch(type)
 	{
 		case FLOAT32:

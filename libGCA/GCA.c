@@ -82,6 +82,7 @@
  *                                 rowOfZeros <=> GOE. Considering this issue resolved.
  *                             iii. I have been considering names for my rev algorithm
  *                                  , maybe neighbourhood elimination?
+ *       v 0.13 (19/10/2012) - i. fixed bug in Word Entropy causing seg fault.
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -113,6 +114,8 @@
  *        column of zeros) is a sufficient but not necessary condition for the existence.
  *        That is colOfzeros => GOE not colOfzeros <=> GOE... working on a further condition
  *        such that colOfzeros ^ q <=> GOE. - fixed (v 0.12)
+ *     6. There seems to be a bug in the InputEntropy Calculation, need to look into this.
+ *     7. Word entropy is causing seg faults. - fixed (v 0.13)
  * =============================================================================
  */
 
@@ -1596,8 +1599,8 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 		{
 			return -1.0;
 		}
-		memset((void*)p,0,N*T*sizeof(float));
 	}
+	memset((void*)p,0,N*T*sizeof(float));
 
 	if (logs_pm != NULL)
 	{
@@ -1638,7 +1641,7 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 			return -1.0;
 		}
 	}
-	memset((void*)TF,0,N*sizeof(unsigned int));
+	memset((void*)TF,0,N*sizeof(unsigned char));
 	
 	if (wlm != NULL)
 	{
@@ -1665,7 +1668,7 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 			return -1.0;
 		}
 	}
-	memset((void*)count,0,N*s*sizeof(unsigned int));
+	memset((void*)count,0,N*T*sizeof(unsigned int));
 	/*initialise word lengths at 1*/
 	for (i=0;i<N;i++)
 	{
@@ -1695,7 +1698,7 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 		{
 			word_lengths[i]++;
 		}
-
+		
 		/*increment counts for words that did change*/
 		for (i=0;i<N;i++)
 		{

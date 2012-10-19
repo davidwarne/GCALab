@@ -88,7 +88,7 @@
 #define GCALAB_WS_STATE_PROCESSING 	1
 #define GCALAB_WS_STATE_PAUSED 		2
 #define GCALAB_WS_STATE_EXITING 	3
-#define GCALAB_WS_STATE_ERROR 		-1
+#define GCALAB_WS_STATE_ERROR 		5
 
 #define GCALAB_NOP 		0
 #define GCALAB_LOAD 	1
@@ -184,7 +184,7 @@ char GCALab_PrintWorkSpace(unsigned char ws_id);
 char GCALab_ListWorkSpaces(void);
 void GCALab_PrintHelp(void);
 char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id);
-char GCALab_PrintResult(unsigned char ws_id,unsigned int res_id);
+char GCALab_PrintResults(unsigned char ws_id,unsigned int res_id);
 
 void GCALab_SplashScreen(void);
 void GCALab_PrintLicense(void);
