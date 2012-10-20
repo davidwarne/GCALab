@@ -184,6 +184,7 @@ char GCALab_PrintWorkSpace(unsigned char ws_id);
 char GCALab_ListWorkSpaces(void);
 void GCALab_PrintHelp(void);
 char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id);
+char GCALab_PrintSTP(unsigned char ws_id,unsigned int gca_id);
 char GCALab_PrintResults(unsigned char ws_id,unsigned int res_id);
 
 void GCALab_SplashScreen(void);

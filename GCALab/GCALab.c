@@ -44,6 +44,9 @@
  *                             iv. Implement pre-image comput command
  *       v 0.08 (19/10/2012) - i. Testing of compute functions
  *                             ii. save function implemented
+ *       v 0.09 (20/10/2012) - i. load function implemented
+ *                             ii. simulation implemented 
+ *                             iii. testing of functions for no-eca gca
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -67,7 +70,7 @@ unsigned int GCALab_numWS;
 unsigned char GCALab_mode;
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
-
+char cellsymbols[6] = {' ','O','*','-','^','='};
 /* main(): entry point of the GCALab Program
  */
 int main(int argc, char **argv)
@@ -244,6 +247,19 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 				rc = GCALab_PrintCA(cur_ws,id);
 			}
 				
+		}
+		else if (!strcmp(cmd,"print-st"))
+		{
+			if (numargs < 2)
+			{
+				GCALab_HandleErr(GCALAB_INVALID_OPTION);
+			}
+			else
+			{
+				unsigned int id;
+				id = (unsigned int)atoi(userinput[1]);
+				rc = GCALab_PrintSTP(cur_ws,id);
+			}
 		}
 		else if (!strcmp(cmd,"print-results"))
 		{
@@ -509,6 +525,8 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 		case GCALAB_LOAD:
 		{
 			char *filename;
+			GraphCellularAutomaton *GCA;
+			mesh *m;
 			filename = NULL;
 			for (i=0;i<nparams;i++)
 			{
@@ -517,6 +535,17 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 					filename = params[++i];
 				}
 			}
+
+			GCA = NULL;
+			m = NULL;
+			if (filename != NULL)
+			{
+				GCALab_fio_loadCA(filename,&GCA,&m);
+			}
+	
+			WS(ws_id)->GCAList[WS(ws_id)->numGCA] = GCA;
+			WS(ws_id)->GCAGeometry[WS(ws_id)->numGCA] = m;
+			WS(ws_id)->numGCA++;
 		}
 			break;
 		case GCALAB_SAVE:
@@ -562,6 +591,8 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 			unsigned int Tfinal;
 			unsigned char reInit,ic_type;
 			char *ic_filename;
+			GraphCellularAutomaton *GCA;
+			reInit = 0;
 			for (i=0;i<nparams;i++)
 			{
 				if(!strcmp(params[i],"-t"))
@@ -581,13 +612,23 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 					ic_type = (unsigned char)atoi(params[++i]);
 				}
 			}
+			
+			GCA = WS(ws_id)->GCAList[trgt_id];
+			if (reInit)
+			{
+				ResetCA(GCA);
+				SetCAIC(GCA,NULL,ic_type);
+			}
+			
+			CASimTSteps(GCA,Tfinal);
+
 		}
 			break;
 		case GCALAB_GCA:
 		{
 			char *meshfile;
 			unsigned int NCell,genus,windowsize;
-			unsigned char r_type,r,s,k,eca;
+			unsigned char r_type,r,s,k,eca,ic_type;
 			GraphCellularAutomaton *GCA;
 			CellularAutomatonParameters *CAparams;
 			mesh *m;
@@ -626,6 +667,10 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 					r = (unsigned char)atoi(params[++i]);
 					eca = 1;
 				}
+				else if (!strcmp(params[i],"-c"))
+				{
+					ic_type = (unsigned char)atoi(params[++i]);
+				}
 			}
 
 			if (eca)
@@ -641,13 +686,14 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 			}
 			else
 			{
-				if (meshfile)
+				if (meshfile != NULL)
 				{
 					/*this is not ideal by is ok for now*/
 					m = LoadMesh(meshfile,OFF_FORMAT);
 				}
 				else
 				{
+					printf("get here!\n");
 					m = CreateMeshTopology(NCell,genus);
 				}
 				rc = GCALab_TestPointer((void*)m);
@@ -655,7 +701,7 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 				{
 					return rc;
 				}
-				CAparams = CreateCAParams(m,r_type,r,windowsize);
+				CAparams = CreateCAParams(m,s,r_type,r,windowsize);
 				rc = GCALab_TestPointer((void*)CAparams);
 				if (rc <= 0)
 				{
@@ -668,7 +714,9 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 					return rc;
 				}
 			}
-			
+		
+			ResetCA(GCA);
+			SetCAIC(GCA,NULL,ic_type);
 			WS(ws_id)->GCAList[WS(ws_id)->numGCA] = GCA;
 			WS(ws_id)->GCAGeometry[WS(ws_id)->numGCA] = m;
 			WS(ws_id)->numGCA++;
@@ -1663,15 +1711,42 @@ char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id)
 	fprintf(stdout,"Configuration at t = 0\n");
 	for(i=0;i<GCA->params->N;i++)
 	{
-		fprintf(stdout,"%u ",GetCellStatePacked_external(GCA,GCA->ic,i));
+		fprintf(stdout,"%c",cellsymbols[GetCellStatePacked_external(GCA,GCA->ic,i)]);
 	}
 	fprintf(stdout,"\n");
 	fprintf(stdout,"Configuration at t = %d\n",GCA->t);
 	for(i=0;i<GCA->params->N;i++)
 	{
-		fprintf(stdout,"%u ",GetCellStatePacked_external(GCA,GCA->config,i));
+		fprintf(stdout,"%c",cellsymbols[GetCellStatePacked_external(GCA,GCA->config,i)]);
 	}
 	fprintf(stdout,"\n");
+
+	return GCALAB_SUCCESS;
+}
+
+/* GCALab_PrintSTP(): Prints the space-time pattern of the select CA
+ */
+char GCALab_PrintSTP(unsigned char ws_id,unsigned int gca_id)
+{
+	int i,l,j;
+	GraphCellularAutomaton *GCA;
+	
+	if (gca_id < 0 || gca_id >= WS(ws_id)->numGCA)
+	{
+		return GCALAB_INVALID_OPTION;
+	}
+
+	GCA = WS(ws_id)->GCAList[gca_id];
+	l = (GCA->t >= GCA->params->WSIZE) ? GCA->params->WSIZE - 1 :  GCA->t;
+
+	for (i=l;i>0;i--)
+	{
+		for (j=0;j<GCA->params->N;j++)
+		{
+			fprintf(stdout,"%c",cellsymbols[GetCellStatePacked(GCA,j,i)]);	
+		}
+		fprintf(stdout,"\n");
+	}
 
 	return GCALAB_SUCCESS;
 }

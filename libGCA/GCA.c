@@ -83,6 +83,9 @@
  *                             iii. I have been considering names for my rev algorithm
  *                                  , maybe neighbourhood elimination?
  *       v 0.13 (19/10/2012) - i. fixed bug in Word Entropy causing seg fault.
+ *       
+ *       v 0.14 (20/10/2012) - i. fixed bug in Input Entropy.
+ *                             ii. fixed memory errors in CreateGCA.
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -195,13 +198,13 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
 							tf |= 1;
 						}
 					}
-					if (((f1[j] == f2[k_tmp-1]) && (f1[j+1] == f2[0])) 
-						|| ((f1[j] == f2[0]) && (f1[j+1] == f2[k_tmp-1])))
+					if (((f1[j] == f2[k_tmp-2]) && (f1[j+1] == f2[0])) 
+						|| ((f1[j] == f2[0]) && (f1[j+1] == f2[k_tmp-2])))
 					{
 						tf |= 1;
 					}
 
-					if (tf)
+					if (tf && (ii != i))
 						break;
 				}	
 				graph[i*(k_tmp-1) + j] = ii;
@@ -213,21 +216,21 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
 				tf = 0;
 				for (jj=0;jj<k_tmp-2;jj++)
 				{
-					if (((f1[k_tmp-1] == f2[jj]) && (f1[0] == f2[jj+1])) 
-						|| ((f1[k_tmp-1] == f2[jj+1]) && (f1[0] == f2[jj])))
+					if (((f1[k_tmp-2] == f2[jj]) && (f1[0] == f2[jj+1])) 
+						|| ((f1[k_tmp-2] == f2[jj+1]) && (f1[0] == f2[jj])))
 					{
 						tf |= 1;
 					}
 				}
-				if (((f1[k_tmp-1] == f2[k_tmp-1]) && (f1[0] == f2[0])) 
-					|| ((f1[k_tmp-1] == f2[0]) && (f1[0] == f2[k_tmp-1])))
+				if (((f1[k_tmp-2] == f2[k_tmp-2]) && (f1[0] == f2[0])) 
+					|| ((f1[k_tmp-2] == f2[0]) && (f1[0] == f2[k_tmp-2])))
 				{
 					tf |= 1;
 				}
-				if (tf)
+				if (tf && (ii != i))
 					break;
 			}	
-			graph[i*(k_tmp-1) + k_tmp-1] = ii;
+			graph[i*(k_tmp-1) + k_tmp-2] = ii;
 		}
 	}
 	
@@ -244,7 +247,7 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
  *     rule - the rule code
  *     ws - the window-size (i.e., the number of timesteps to store)
  */
-CellularAutomatonParameters *CreateCAParams(mesh *m,unsigned char rule_type, unsigned char rule, unsigned int ws)
+CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned char rule, unsigned int ws)
 {
 	CellularAutomatonParameters *params;
 
@@ -263,7 +266,7 @@ CellularAutomatonParameters *CreateCAParams(mesh *m,unsigned char rule_type, uns
 	params->WSIZE = (ws == 0) ? DEFAULT_WINDOW_SIZE : ws;
 	params->rule_type = rule_type;
 	params->rule = rule;
-
+	params->s = s;
 	return params;
 }
 
@@ -1713,7 +1716,7 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 	}
 	
 	/*compute log base s for each p_i^j*/
-	logs_inv = 1.0/log(s);	
+	logs_inv = 1.0/log(T);	
 	for (i=0;i<N*T;i++)
 	{
 		logs_p[i] = logs_inv;
@@ -2083,7 +2086,7 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	N = GCA->params->N;
 	w = GCA->params->WSIZE;
 	n = GCA->LUT_size;
-	numLookups = n*w;
+	numLookups = N*w;
 	if (Qm != NULL)
 	{
 		Q = Qm;
@@ -2144,7 +2147,8 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 
 		for (i=0;i<n;i++)
 		{
-			logQ[i] = log(((float)Q[i])*inv_numLookups);
+			
+			logQ[i] = (Q[i] == 0) ? 0 : log(((float)Q[i])*inv_numLookups);
 		}
 		for (i=0;i<n;i++)
 		{

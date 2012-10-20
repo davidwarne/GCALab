@@ -50,4 +50,6 @@ char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m);
 
 char GCALab_fio_saveData(char* filename,char * name, void * data, int N,unsigned char type);
 
+char GCALab_fio_loadCA(char* filenale, GraphCellularAutomaton **GCA, mesh **m);
+
 #endif
