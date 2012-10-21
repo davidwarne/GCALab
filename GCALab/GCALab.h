@@ -43,7 +43,7 @@
 #include "GCA.h"
 #include "GCALab_fio.h"
 
-#define GCALAB_VERSION 0.05
+#define GCALAB_VERSION 0.10
 
 /*this error code should be consistent with the error codes in mesh.h*/
 #define GCALAB_SUCCESS 			127
@@ -98,6 +98,7 @@
 #define GCALAB_ENTROPY 	5
 #define GCALAB_PARAM	6
 #define GCALAB_REVERSE	7
+#define GCALAB_STATE_FREQUENCIES 8
 
 #define GCALAB_SHANNON_ENTROPY 	0
 #define GCALAB_WORD_ENTROPY 	1
@@ -150,7 +151,7 @@ struct GCALab_CL_Options_struct
 	/*flags for input and output of CA data*/
 	unsigned char load_CA;
 	unsigned char save_CA;
-	
+	char *ScriptFile;	
 	char *CAInputFilename;
 	char *CAOutputFilename;
 };
@@ -186,6 +187,8 @@ void GCALab_PrintHelp(void);
 char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id);
 char GCALab_PrintSTP(unsigned char ws_id,unsigned int gca_id);
 char GCALab_PrintResults(unsigned char ws_id,unsigned int res_id);
+
+char ** GCALab_ReadScriptCommand(char * filename, int *numargs);
 
 void GCALab_SplashScreen(void);
 void GCALab_PrintLicense(void);

@@ -1,8 +1,8 @@
 #!/bin/make
 
 CC = gcc
-#OPTS = -O2 -DNO_THREADS
-OPTS = -g
+OPTS = -O2 -DNO_THREADS
+#OPTS = -g
 SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c
 OBJS = $(SRC:.c=.o)
 INC = -I../libMesh/ -I../libGCA/ -I./
