@@ -61,6 +61,7 @@
 #define GCALAB_TEXT_MODE 		1
 #define GCALAB_BATCH_MODE 		2
 
+
 #ifndef GCALAB_DEFAULT_MODE
 #define GCALAB_DEFAULT_MODE GCALAB_TEXT_MODE
 #endif
@@ -114,6 +115,8 @@
 typedef struct GCALab_CL_Options_struct GCALab_CL_Options;
 typedef struct GCALabworkspace_struct GCALab_WS;
 typedef struct GCALabOutput_struct GCALabOutput;
+typedef struct GCALab_Command_struct GCALab_Cmd;
+typedef struct GCALab_Operation_struct GCALab_Op;
 
 
 struct GCALabOutput_struct
@@ -154,6 +157,28 @@ struct GCALab_CL_Options_struct
 	char *ScriptFile;	
 	char *CAInputFilename;
 	char *CAOutputFilename;
+};
+
+struct GCALab_Command_struct
+{
+	/*the command name*/
+	char *id;
+	/*function pointer*/
+	char (*f)(int,char**);
+	/*help infomation*/
+	char *args;
+	char *desc;
+};
+
+struct GCALab_Operation_struct
+{
+	/*the command name*/
+	char *id;
+	/*function pointer*/
+	char (*f)(unsigned char, unsigned int,int,char**,GCALabOutput **res);
+	/*help infomation*/
+	char *args;
+	char *desc;
 };
 
 /*function prototypes*/
@@ -202,4 +227,30 @@ char GCALab_ValidWSId(unsigned int ws_id);
 void GCALab_InitCL_Options(GCALab_CL_Options* opts);
 GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv);
 char** strvncpy(char **strv,int c,int n);
+
+/*menu commands*/
+char GCALab_CMD_NewWorkSpace(int argc, char **argv);
+char GCALab_CMD_PrintWorkSpace(int argc, char **argv);
+char GCALab_CMD_ListWorkSpaces(int argc, char **argv);
+char GCALab_CMD_PrintHelp(int argc, char **argv);
+char GCALab_CMD_ChangeWorkSpace(int argc, char **argv);
+char GCALab_CMD_QueueCommand(int argc, char **argv);
+char GCALab_CMD_DeleteCommand(int argc, char **argv);
+char GCALab_CMD_ExecuteQueue(int argc, char **argv);
+char GCALab_CMD_StopQueue(int argc, char **argv);
+char GCALab_CMD_PrintCA(int argc, char **argv);
+char GCALab_CMD_PrintSTP(int argc, char ** argv);
+char GCALab_CMD_PrintResults(int argc, char **argv);
+char GCALab_CMD_Quit(int argc, char **argv);
+
+/*compute operations*/
+char GCALab_OP_NOP(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Load(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Save(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Simulate(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Reverse(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 #endif

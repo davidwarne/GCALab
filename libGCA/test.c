@@ -163,7 +163,7 @@ void testSE(int argc,char **argv)
 	
 	SetCAIC(ECA,NULL,NOISE_IC_TYPE);
 	
-	fprintf(stdout,"Shannon Entropy = %f\n",ShannonEntropy(ECA,1000000,NULL));
+	fprintf(stdout,"Shannon Entropy = %f\n",ShannonEntropy(ECA,1000000,NULL,NULL,NULL,NULL,NULL));
 }
 unsigned int popcount(void* bits,int nbytes)
 {
