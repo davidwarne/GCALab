@@ -1312,6 +1312,9 @@ char** strvncpy(char **strv,int c, int n)
 
 /*menu commands*/
 
+/* GCALab_CMD_NewWorkSpace(): GCALab command to create a new
+ *                            workspace
+ */
 char GCALab_CMD_NewWorkSpace(int argc, char **argv)
 {
 	int lim;
@@ -1331,22 +1334,33 @@ char GCALab_CMD_NewWorkSpace(int argc, char **argv)
 	}
 }
 
+/* GCALab_CMD_PrintWorkSpace(): GCALab command to print
+ *                              the current workspace
+ */
 char GCALab_CMD_PrintWorkSpace(int argc, char **argv)
 {
 	return GCALab_PrintWorkSpace(cur_ws);
 }
 
+/* GCALab_CMD_ListWorkSpace(): GCALab command to print summary 
+ *                            information on all workspaces
+ */
 char GCALab_CMD_ListWorkSpaces(int argc, char **argv)
 {
 	return GCALab_ListWorkSpaces();
 }
 
+/* GCALab_CMD_PrintHelp(): GCALab command to print help menu
+ */
 char GCALab_CMD_PrintHelp(int argc, char **argv)
 {
 	GCALab_PrintHelp();
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_CMD_ChangeWorkSpace(): GCALab command to set focus to
+ *                               a given workspace
+ */
 char GCALab_CMD_ChangeWorkSpace(int argc, char **argv)
 {
 	char rc;
@@ -1367,6 +1381,9 @@ char GCALab_CMD_ChangeWorkSpace(int argc, char **argv)
 	}
 }
 
+/* GCALab_CMD_QueueCommand(): GCALab command to enqueue a 
+ *                            compute operation
+ */
 char GCALab_CMD_QueueCommand(int argc, char **argv)
 {
 	char rc;
@@ -1398,6 +1415,9 @@ char GCALab_CMD_QueueCommand(int argc, char **argv)
 	}
 }
 
+/* GCALab_CMD_DeleteCommand(): GCALab command to delete a compute
+ *                             operation.
+ */
 char GCALab_CMD_DeleteCommand(int argc, char **argv)
 {
 	if (argc < 2)
@@ -1412,16 +1432,24 @@ char GCALab_CMD_DeleteCommand(int argc, char **argv)
 	}
 }
 
+/* GCALab_CMD_ExecuteQueue(): GCALab Command to signal a thread to 
+ *                            process a command queue
+ */
 char GCALab_CMD_ExecuteQueue(int argc, char **argv)
 {
 	return GCALab_ProcessCommandQueue(cur_ws);
 }
 
+/* GCALab_CMD_StopQueue(): GCALab command to signal a thread to
+ *                         halt processing of a command queue.
+ */
 char GCALab_CMD_StopQueue(int argc, char **argv)
 {
 	return GCALab_PauseCommandQueue(cur_ws);
 }
 
+/* GCALab_CMD_PrintCA(): GCALab command to print CA summary
+ */
 char GCALab_CMD_PrintCA(int argc, char **argv)
 {
 	if (argc < 2)
@@ -1436,6 +1464,8 @@ char GCALab_CMD_PrintCA(int argc, char **argv)
 	}
 }
 
+/* GCALab_CMD_PrintSTP(): GCALab command to print CA evolution
+ */
 char GCALab_CMD_PrintSTP(int argc, char ** argv)
 {
 	if (argc < 2)
@@ -1450,6 +1480,8 @@ char GCALab_CMD_PrintSTP(int argc, char ** argv)
 	}
 }
 
+/* GCALab_CMD_PrintResults(); GCALab command to print result data.
+ */
 char GCALab_CMD_PrintResults(int argc, char **argv)
 {
 	if (argc < 2)
@@ -1464,6 +1496,8 @@ char GCALab_CMD_PrintResults(int argc, char **argv)
 	}
 }
 
+/* GCALab_CMD_Quit(): GCALab command to quit 
+ */
 char GCALab_CMD_Quit(int argc, char **argv)
 {
 	GCALab_ShutDown(GCALAB_SUCCESS);
@@ -1472,11 +1506,15 @@ char GCALab_CMD_Quit(int argc, char **argv)
 
 /*compute operations*/
 
+/* GCALab_OP_NOP(): No Operation
+ */
 char GCALab_OP_NOP(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res)
 {
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Load(): Load a CA from file.
+ */
 char GCALab_OP_Load(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	char *filename;
@@ -1504,6 +1542,8 @@ char GCALab_OP_Load(unsigned char ws_id,unsigned int trgt_id,int nparams, char *
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Save(): Save CA or Result data to file
+ */
 char GCALab_OP_Save(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	char *filename;
@@ -1543,6 +1583,8 @@ char GCALab_OP_Save(unsigned char ws_id,unsigned int trgt_id,int nparams, char *
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Simulate(): direct simulation of CA evolution
+ */
 char GCALab_OP_Simulate(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	unsigned int Tfinal;
@@ -1582,6 +1624,8 @@ char GCALab_OP_Simulate(unsigned char ws_id,unsigned int trgt_id,int nparams, ch
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_GCA(): Create a Graph Cellular Automaton
+ */
 char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	char *meshfile;
@@ -1689,6 +1733,8 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Entropy(): compute entropy meansures on a given CA
+ */
 char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	unsigned int numSamples;
@@ -2034,6 +2080,8 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Param(): compute various CA parameters (e.g. Lambda, or Z)
+ */
 char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	unsigned int type;
@@ -2104,6 +2152,8 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Reverse(): compute pre-images of current CA configuration 
+ */
 char GCALab_OP_Reverse(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	unsigned int numPreImages;
@@ -2121,6 +2171,8 @@ char GCALab_OP_Reverse(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Freq(): count CA state frequency per cell.
+ */
 char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	unsigned int numSamples;

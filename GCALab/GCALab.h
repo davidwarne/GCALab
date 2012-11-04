@@ -118,7 +118,7 @@ typedef struct GCALabOutput_struct GCALabOutput;
 typedef struct GCALab_Command_struct GCALab_Cmd;
 typedef struct GCALab_Operation_struct GCALab_Op;
 
-
+/*output data from compute operations*/
 struct GCALabOutput_struct
 {
 	int type;
@@ -127,6 +127,7 @@ struct GCALabOutput_struct
 	void *data;
 };
 
+/*memory and command queue attached to a thread*/
 struct GCALabworkspace_struct
 {
 	GraphCellularAutomaton **GCAList;
@@ -147,6 +148,7 @@ struct GCALabworkspace_struct
 	pthread_mutex_t wslock;
 };
 
+/*command line options*/
 struct GCALab_CL_Options_struct
 {
 	unsigned char mode;
@@ -159,6 +161,7 @@ struct GCALab_CL_Options_struct
 	char *CAOutputFilename;
 };
 
+/*high level GCALab commands - workspace level*/
 struct GCALab_Command_struct
 {
 	/*the command name*/
@@ -170,9 +173,10 @@ struct GCALab_Command_struct
 	char *desc;
 };
 
+/*low level compute operations - CA level*/
 struct GCALab_Operation_struct
 {
-	/*the command name*/
+	/*the operation name*/
 	char *id;
 	/*function pointer*/
 	char (*f)(unsigned char, unsigned int,int,char**,GCALabOutput **res);
