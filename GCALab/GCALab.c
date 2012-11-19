@@ -1702,7 +1702,7 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 		}
 		else
 		{
-			printf("get here!\n");
+			//printf("get here!\n");
 			m = CreateMeshTopology(NCell,genus);
 		}
 		rc = GCALab_TestPointer((void*)m);

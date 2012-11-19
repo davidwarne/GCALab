@@ -87,6 +87,9 @@
  *       v 0.14 (20/10/2012) - i. fixed bug in Input Entropy.
  *                             ii. fixed memory errors in CreateGCA.
  *
+ *       v 0.15 (19/11/2012) - i. minor bug fix in Create GCA for totalistic and thresh-hold
+ *                                based rule codes
+ *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
  * TODO List:
@@ -377,11 +380,11 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 			{
 				return NULL;
 			}
-			/* here the rule is composed of 5 states-- the state of interest, 
-			 * the threshhold,follow by three states <,=,>
+			/* here the rule is composed of 4 states-- three states <,=,>, the state of
+			 * interest, then a 8-bit integer representing the threshold
 			 */ 
-			ref = (state)(GCA->params->rule & ((0x1 << (GCA->log2s)) - 1));
-			thresh = (unsigned char)((GCA->params->rule >> (GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1)); 
+			ref = (state)((GCA->params->rule >> 3*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
+			thresh = (unsigned char)((GCA->params->rule >> 4*(GCA->log2s)) & 0xFF); 
 			for (i=0;i<GCA->LUT_size;i++)
 			{
 				register unsigned char sum;
@@ -390,21 +393,21 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 				sum = 0;
 				for (j=0;j<GCA->params->k;j++)
 				{
-					s_i = (state)((i >> i*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
+					s_i = (state)((i >> j*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
 					sum += (s_i == ref);
 				}
 				
 				if (sum < thresh)
 				{
-					ii = 2;
+					ii = 0;
 				}
 				else if (sum == thresh)
 				{
-					ii = 3;
+					ii = 1;
 				}
 				else
 				{
-					ii = 4;
+					ii = 2;
 				}
 				GCA->ruleLUT[i] = (state)((GCA->params->rule >> ii*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
 			}
@@ -425,7 +428,6 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 			 * follow by k state changes for each count.
 			 */ 
 			ref = (state)(GCA->params->rule & ((0x1 << (GCA->log2s)) - 1));
-			
 			for (i=0;i<GCA->LUT_size;i++)
 			{
 				register unsigned char sum;
@@ -434,11 +436,10 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 				sum = 0;
 				for (j=0;j<GCA->params->k;j++)
 				{
-					s_i = (state)((i >> i*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
+					s_i = (state)((i >> j*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
 					sum += (s_i == ref);
 				}
-				
-				for (j=0;j<GCA->params->k;j++)
+				for (j=0;j<=GCA->params->k;j++)
 				{
 					if (sum == (state)j)
 					{
@@ -447,7 +448,7 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 					}
 				}
 				
-				GCA->ruleLUT[i] = (state)((GCA->params->rule >> ii*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
+				GCA->ruleLUT[i] = (state)((GCA->params->rule >> (ii+1)*(GCA->log2s)) & ((0x1 << (GCA->log2s)) - 1));
 			}
 		}
 			break;

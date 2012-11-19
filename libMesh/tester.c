@@ -33,8 +33,9 @@ int main(int argc,char **argv)
 		m2 = CreateDual(m);
 		SaveMesh("icosa.off",CreateIcosahedron(),OFF_FORMAT);
 		SaveMesh("torus.off",CreateTorus(),OFF_FORMAT);
-		SaveMesh("icosa_180.off",CreateDual(CreateTopology(320,0)),OFF_FORMAT);
-		SaveMesh("torus_180.off",CreateTopology(320,1),OFF_FORMAT);	
+		SaveMesh("icosa_180.off",CreateDual(CreateMeshTopology(320,0)),OFF_FORMAT);
+		SaveMesh("torus_180.off",CreateMeshTopology(320,1),OFF_FORMAT);	
+		SaveMesh("torus_dual_180.off",CreateDual(CreateMeshTopology(320,1)),OFF_FORMAT);	
 		SaveMesh("icosa_dual.off",m2,OFF_FORMAT);
 		return 0;
 	}
