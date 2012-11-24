@@ -43,7 +43,7 @@
 #include "GCA.h"
 #include "GCALab_fio.h"
 
-#define GCALAB_VERSION 0.10
+#define GCALAB_VERSION 0.11
 
 /*this error code should be consistent with the error codes in mesh.h*/
 #define GCALAB_SUCCESS 			127
@@ -213,6 +213,7 @@ char **GCALab_CommandPrompt(int *numargs);
 char GCALab_PrintWorkSpace(unsigned char ws_id);
 char GCALab_ListWorkSpaces(void);
 void GCALab_PrintHelp(void);
+void GCALab_PrintOperations(void);
 char GCALab_PrintCA(unsigned char ws_id,unsigned int gca_id);
 char GCALab_PrintSTP(unsigned char ws_id,unsigned int gca_id);
 char GCALab_PrintResults(unsigned char ws_id,unsigned int res_id);
@@ -237,6 +238,7 @@ char GCALab_CMD_NewWorkSpace(int argc, char **argv);
 char GCALab_CMD_PrintWorkSpace(int argc, char **argv);
 char GCALab_CMD_ListWorkSpaces(int argc, char **argv);
 char GCALab_CMD_PrintHelp(int argc, char **argv);
+char GCALab_CMD_PrintOperations(int argc,char **argv);
 char GCALab_CMD_ChangeWorkSpace(int argc, char **argv);
 char GCALab_CMD_QueueCommand(int argc, char **argv);
 char GCALab_CMD_DeleteCommand(int argc, char **argv);

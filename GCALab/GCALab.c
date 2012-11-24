@@ -79,9 +79,9 @@
 /*global array of workspace addresses*/
 GCALab_WS **GCALab_Global;
 unsigned int GCALab_numWS;
-GCALab_Cmd GCALab_Cmds[13];
+GCALab_Cmd GCALab_Cmds[14];
 unsigned int GCALab_numCmds;
-GCALab_Op GCALab_Ops[8];
+GCALab_Op GCALab_Ops[9];
 unsigned int GCALab_numOps;
 unsigned char GCALab_mode;
 unsigned int cur_ws;
@@ -269,7 +269,7 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	}
 
 	/*register commands*/
-	GCALab_numCmds = 13;
+	GCALab_numCmds = 14;
 	GCALab_Cmds[0].id = "new-work";
 	GCALab_Cmds[0].f = &GCALab_CMD_NewWorkSpace;
 	GCALab_Cmds[0].args = "n";
@@ -334,43 +334,48 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	GCALab_Cmds[12].f = &GCALab_CMD_PrintHelp;
 	GCALab_Cmds[12].args = "none";
 	GCALab_Cmds[12].desc = "Prints this help menu.";
+	
+	GCALab_Cmds[13].id = "list-cmds";
+	GCALab_Cmds[13].f = &GCALab_CMD_PrintOperations;
+	GCALab_Cmds[13].args = "none";
+	GCALab_Cmds[13].desc = "Prints available compute commands.";
 	/*register operations*/	
 	GCALab_Ops[GCALAB_NOP].id = "nop";
 	GCALab_Ops[GCALAB_NOP].f = &GCALab_OP_NOP;
-	GCALab_Ops[GCALAB_NOP].args = "";
-	GCALab_Ops[GCALAB_NOP].desc = "";
+	GCALab_Ops[GCALAB_NOP].args = "none";
+	GCALab_Ops[GCALAB_NOP].desc = "No Operation";
 	GCALab_Ops[GCALAB_LOAD].id = "load";
 	GCALab_Ops[GCALAB_LOAD].f = &GCALab_OP_Load;
-	GCALab_Ops[GCALAB_LOAD].args = "";
-	GCALab_Ops[GCALAB_LOAD].desc = "";
+	GCALab_Ops[GCALAB_LOAD].args = "i -f filename";
+	GCALab_Ops[GCALAB_LOAD].desc = "Loads a *.gca file into the current workspace";
 	GCALab_Ops[GCALAB_SAVE].id = "save";
 	GCALab_Ops[GCALAB_SAVE].f = &GCALab_OP_Save;
-	GCALab_Ops[GCALAB_SAVE].args = "";
-	GCALab_Ops[GCALAB_SAVE].desc = "";
+	GCALab_Ops[GCALAB_SAVE].args = "i -f filename (-g | -r)";
+	GCALab_Ops[GCALAB_SAVE].desc = "Save a GCA or result with id to file";
 	GCALab_Ops[GCALAB_SIMULATE].id = "simulate";
 	GCALab_Ops[GCALAB_SIMULATE].f = &GCALab_OP_Simulate;
-	GCALab_Ops[GCALAB_SIMULATE].args = "";
-	GCALab_Ops[GCALAB_SIMULATE].desc = "";
+	GCALab_Ops[GCALAB_SIMULATE].args = "i -t Tfinal [-I] [-f icfile | -c ictype]";
+	GCALab_Ops[GCALAB_SIMULATE].desc = "simulates the id to Tfinal";
 	GCALab_Ops[GCALAB_GCA].id = "gca";
 	GCALab_Ops[GCALAB_GCA].f = &GCALab_OP_GCA;
-	GCALab_Ops[GCALAB_GCA].args = "";
-	GCALab_Ops[GCALAB_GCA].desc = "";
+	GCALab_Ops[GCALAB_GCA].args = "i (((-m meshfile | -t numcells genus) -s numstates -r ruletype rulecode) | -eca numCells numNeighbours rule) [-c ictype] [-w windowsize]";
+	GCALab_Ops[GCALAB_GCA].desc = "Creates a new graph cellular automaton in the current workspace";
 	GCALab_Ops[GCALAB_ENTROPY].id = "entropy";
 	GCALab_Ops[GCALAB_ENTROPY].f = &GCALab_OP_Entropy;
-	GCALab_Ops[GCALAB_ENTROPY].args = "";
-	GCALab_Ops[GCALAB_ENTROPY].desc = "";
+	GCALab_Ops[GCALAB_ENTROPY].args = "i -n numsamples -t timesteps -e entropytype";
+	GCALab_Ops[GCALAB_ENTROPY].desc = "Computes entropy measures of graph cellular automaton at i";
 	GCALab_Ops[GCALAB_PARAM].id = "param";
 	GCALab_Ops[GCALAB_PARAM].f = &GCALab_OP_Param;
-	GCALab_Ops[GCALAB_PARAM].args = "";
-	GCALab_Ops[GCALAB_PARAM].desc = "";
+	GCALab_Ops[GCALAB_PARAM].args = "i -p paramtype [-l config0 configN]";
+	GCALab_Ops[GCALAB_PARAM].desc = "Computes complexity parameters such as Langton's lambda";
 	GCALab_Ops[GCALAB_REVERSE].id = "reverse";
 	GCALab_Ops[GCALAB_REVERSE].f = &GCALab_OP_Reverse;
-	GCALab_Ops[GCALAB_REVERSE].args = "";
-	GCALab_Ops[GCALAB_REVERSE].desc = "";
+	GCALab_Ops[GCALAB_REVERSE].args = "i";
+	GCALab_Ops[GCALAB_REVERSE].desc = "Computes pre-images of the current configuration of the graph cellular automaton at i";
 	GCALab_Ops[GCALAB_STATE_FREQUENCIES].id = "freq";
 	GCALab_Ops[GCALAB_STATE_FREQUENCIES].f = &GCALab_OP_Freq;
-	GCALab_Ops[GCALAB_STATE_FREQUENCIES].args = "";
-	GCALab_Ops[GCALAB_STATE_FREQUENCIES].desc = "";
+	GCALab_Ops[GCALAB_STATE_FREQUENCIES].args = "i (-n numsamples | -l config0 configN)";
+	GCALab_Ops[GCALAB_STATE_FREQUENCIES].desc = "Computes state frequency histogram for each cell in the graph cellular automaton at i";
 	GCALab_numOps = 9;
 	opts[0] = GCALab_ParseCommandLineArgs(argc,argv);
 	if (!(opts[0]))
@@ -1128,6 +1133,22 @@ void GCALab_PrintHelp(void)
 	return;
 }
 
+/* GCALab_PrintOperations(): Print list of queuable compute functions
+ */
+void GCALab_PrintOperations(void)
+{
+	int i;
+
+	fprintf(stdout,"\nOperations List:\n");
+	fprintf(stdout,"-----------------\n");
+	for (i=0;i<GCALab_numOps;i++)
+	{
+		fprintf(stdout,"Synopsis: %s %s\n",GCALab_Ops[i].id,GCALab_Ops[i].args);
+		fprintf(stdout,"Description: %s\n",GCALab_Ops[i].desc);
+	}
+	return;
+}
+
 /* GCALab_PrintWorkSpace(): prints summart information about the 
  *                          given workspace.
  */
@@ -1329,7 +1350,7 @@ char GCALab_CMD_NewWorkSpace(int argc, char **argv)
 		rc = GCALab_NewWorkSpace(lim);
 		if (rc != GCALAB_SUCCESS) return rc;
 		cur_ws = GCALab_numWS - 1;
-		printf("New Workspace create! ID = %d\n",cur_ws);
+		printf("New Workspace created! ID = %d\n",cur_ws);
 		return GCALAB_SUCCESS;
 	}
 }
@@ -1355,6 +1376,15 @@ char GCALab_CMD_ListWorkSpaces(int argc, char **argv)
 char GCALab_CMD_PrintHelp(int argc, char **argv)
 {
 	GCALab_PrintHelp();
+	return GCALAB_SUCCESS;
+}
+
+/* GCALab_CMD_PrintOperations(): GCALab command to print function
+ *                               list
+ */
+char GCALab_CMD_PrintOperations(int argc, char **argv)
+{
+	GCALab_PrintOperations();
 	return GCALAB_SUCCESS;
 }
 
@@ -1742,7 +1772,6 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 	unsigned type;
 	int i;
 	char rc;
-	chunk range[2];
 	GraphCellularAutomaton *GCA;
 	
 	float *p,*logs_p, *S_i,*pt,*logs_pt,*IE,*logQ;
@@ -1766,11 +1795,6 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 		else if(!strcmp(params[i],"-e"))
 		{
 			type = (unsigned int)atoi(params[++i]);
-		}
-		else if (!strcmp(params[i],"-l"))
-		{
-			range[0] = (chunk)atoi(params[++i]);
-			range[1] = (chunk)atoi(params[++i]);
 		}
 	}
 
