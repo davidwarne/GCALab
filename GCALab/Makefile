@@ -1,13 +1,13 @@
 #!/bin/make
 
 CC = gcc
-OPTS = -O2 -DNO_THREADS
+OPTS = -O2 -DNO_THREADS -DWITH_GRAPHICS
 #OPTS = -g
 SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c
 OBJS = $(SRC:.c=.o)
 INC = -I../libMesh/ -I../libGCA/ -I./
 BIN = GCALab
-LIBS = -lm -lpthread
+LIBS = -lm -lpthread -lg -lglut -lGLU
 #PROFILE = -g -pg
 
 

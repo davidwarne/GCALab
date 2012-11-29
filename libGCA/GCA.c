@@ -1676,14 +1676,14 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 	/*initialise word lengths at 1*/
 	for (i=0;i<N;i++)
 	{
-		word_lengths[i] = 1;
+		word_lengths[i] = 0;
 	}
 	
 	/*compute lead in*/
 	CASimTSteps(GCA,WSIZE);
 	
 	/*approximate probabilities*/
-	for (l=1;l<T;l++)
+	for (l=0;l<T-1;l++)
 	{
 		CANextStep(GCA);
 		/*check which cells have changed state*/
@@ -1701,13 +1701,14 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 		for (i=0;i<N;i++)
 		{
 			word_lengths[i]++;
+	//		fprintf(stderr,"%d ",word_lengths[i]);
 		}
-		
+	//	fprintf(stderr,"\n");
 		/*increment counts for words that did change*/
 		for (i=0;i<N;i++)
 		{
 			count[word_lengths[i]*N+ i] += TF[i]; 
-		}		
+		}
 	}
 
 	T_inv = 1.0/((float)T);
@@ -1774,7 +1775,6 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 	{
 		free(p);
 	}
-
 	return W;
 }
 

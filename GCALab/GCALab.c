@@ -85,7 +85,13 @@ GCALab_Op GCALab_Ops[9];
 unsigned int GCALab_numOps;
 unsigned char GCALab_mode;
 unsigned int cur_ws;
-
+#ifdef WITH_GRAPHICS
+GLfloat lightAmbient[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
+GLfloat lightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 0.4f };
+GLfloat lightPosition[4] = { 10.0f, 10.0f, 40.0f, 0.5f };
+float ScreenX,ScreenY,ScreenZ;
+float ScreenTheta, ScreenPhi;
+#endif
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
 char cellsymbols[6] = {' ','O','*','-','^','='};
@@ -95,7 +101,9 @@ int main(int argc, char **argv)
 {
 	GCALab_CL_Options* CL_opt;
 	char rc;
-	
+#ifdef WITH_GRAPHICS
+	glutInit(&argc,argv);
+#endif
 	rc = GCALab_Init(argc,argv,&CL_opt);
 	GCALab_HandleErr(rc);
 	/*Start up in either batch or interactive mode*/
@@ -162,6 +170,30 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
  */
 void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 {
+#ifdef WITH_GRAPHICS
+	int hPix,wPix;
+	GCALab_SplashScreen();
+	/*init display mode*/
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+	/*get the screen resolution*/
+	hPix = glutGet(GLUT_SCREEN_HEIGHT);
+	wPix = glutGet(GLUT_SCREEN_WIDTH);
+
+	/*set up window*/
+	glutInitWindowSize(wPix/2,hPix/2);
+	glutInitWindowPosition(0,0);
+	glutCreateWindow("GCALab");
+	GCALab_Graphics_Init();
+	glutDisplayFunc(GCALab_Graphics_Display);
+	glutReshapeFunc(GCALab_Graphics_Reshape);
+	glutSpecialFunc(GCALab_Graphics_KeyPressed);
+	glutTimerFunc(1000/60,GCALab_Graphics_Timer,1);
+
+	glutMainLoop();
+#else
+	fprintf(stderr,"Graphics Mode not enabled in this build.\n");
+#endif
+	return;
 }
 
 /* GCALab_BatchMode(): Runs Commands is batch mode, 
@@ -816,6 +848,9 @@ GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 					case 'b':
 						CL_opt->mode = GCALAB_BATCH_MODE;
 						break;
+					case 'g':
+						CL_opt->mode = GCALAB_GRAPHICS_MODE;
+						break;
 					case 'l':
 						if (optslist[j+1] == '\0')
 						{
@@ -855,6 +890,10 @@ GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 			{
 				CL_opt->mode = GCALAB_BATCH_MODE;
 				CL_opt->ScriptFile = argv[++i];
+			}
+			else if(!strcmp(argv[i],"--graphics"))
+			{
+				CL_opt->mode = GCALAB_GRAPHICS_MODE;
 			}
 			else if (!strcmp(argv[i],"--load"))
 			{
@@ -1113,7 +1152,7 @@ void GCALab_ShutDown(char rc)
 	{
 		GCALab_SetState(i,GCALAB_WS_STATE_EXITING);
 	}
-	pthread_exit(0);
+	exit(0);
 }
 
 /* GCALab_PrintHelp(): Prints the help menu
@@ -1331,6 +1370,132 @@ char** strvncpy(char **strv,int c, int n)
 	return strv_cp;
 }
 
+#ifdef WITH_GRAPHICS
+/* GCALab_Graphics_Init(): Initialises the graphics settings
+ */
+void GCALab_Graphics_Init(void)
+{
+	/*smooth shading*/
+	glShadeModel(GL_SMOOTH);
+	glClearColor(0.0,0.0,0.0,0.0);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glLightfv(GL_LIGHT1,GL_AMBIENT,lightAmbient);
+	glLightfv(GL_LIGHT1,GL_DIFFUSE,lightDiffuse);
+	glLightfv(GL_LIGHT1,GL_POSITION,lightPosition);
+	glEnable(GL_LIGHT1);
+	glEnable(GL_LIGHTING);
+	glColorMaterial(GL_FRONT,GL_DIFFUSE);
+	glEnable(GL_COLOR_MATERIAL);
+	return;
+}
+
+/* Render the GCA scene
+ */
+void GCALab_Graphics_Display(void)
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+	glTranslatef(ScreenX,ScreenY,ScreenZ-40);
+	glRotatef(ScreenTheta+45,1,0,0);
+	glRotatef(ScreenPhi,0,1,0);
+	
+	glPushMatrix();
+	glBegin(GL_LINES);
+	glColor4f(1,0,0,1);
+	glVertex3f(-1,-1,-1);
+	glVertex3f(-1,1,-1);
+	glVertex3f(-1,1,-1);
+	glVertex3f(1,1,-1);
+	glVertex3f(1,1,-1);
+	glVertex3f(1,-1,-1);
+	glVertex3f(1,-1,-1);
+	glVertex3f(-1,-1,-1);
+
+	glColor4f(0,1,0,1);
+	glVertex3f(-1,-1,1);
+	glVertex3f(-1,1,1);
+	glVertex3f(-1,1,1);
+	glVertex3f(1,1,1);
+	glVertex3f(1,1,1);
+	glVertex3f(1,-1,1);
+	glVertex3f(1,-1,1);
+	glVertex3f(-1,-1,1);
+	
+	glColor4f(0,0,1,1);
+	glVertex3f(-1,-1,1);
+	glVertex3f(-1,-1,-1);
+	glVertex3f(-1,1,1);
+	glVertex3f(-1,1,-1);
+	glVertex3f(1,1,1);
+	glVertex3f(1,1,-1);
+	glVertex3f(1,-1,1);
+	glVertex3f(1,-1,-1);
+	glEnd();
+	glPopMatrix();
+
+	glutSwapBuffers();
+}
+
+/* GCALab_Graphics_KeyPressed(): handles key press events
+ */
+void GCALab_Graphics_KeyPressed(int key, int x, int y)
+{
+	switch(key)
+	{
+		case GLUT_KEY_LEFT: 
+			ScreenX--;
+			break;
+		case GLUT_KEY_UP: 
+			ScreenZ--;
+			break;
+		case GLUT_KEY_RIGHT: 
+			ScreenX++;
+			break;
+		case GLUT_KEY_DOWN: 
+			ScreenZ++;
+			break;
+		case GLUT_KEY_HOME:
+			ScreenTheta--;
+			break;
+		case GLUT_KEY_END:
+			ScreenTheta++;
+			break;
+		case GLUT_KEY_PAGE_UP:
+			ScreenPhi--;
+			break;
+		case GLUT_KEY_PAGE_DOWN:
+			ScreenPhi++;
+			break;
+	}
+}
+
+/* GCALab_Graphics_Reshape(): Sets up projection matrix for 
+ *                            perspective projection
+ */
+void GCALab_Graphics_Reshape(int w, int h)
+{
+	if (h == 0)
+	{
+		h = 1;
+	}
+	glViewport(0,0,w,h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(45.0f,w/h,0.1f,100.0f);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	return;
+}
+/* GCALab_Graphics_Timer(): timer callback called roughly 60
+ *                          times per second.
+ */
+void GCALab_Graphics_Timer(int x)
+{
+	glutPostRedisplay();
+	glutTimerFunc(1000.0/60.0,GCALab_Graphics_Timer,x);
+}
+#endif
 /*menu commands*/
 
 /* GCALab_CMD_NewWorkSpace(): GCALab command to create a new

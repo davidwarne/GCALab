@@ -38,6 +38,10 @@
 /*for threading*/
 #include <pthread.h>
 
+#ifdef WITH_GRAPHICS
+#include <GL/glut.h>	
+#endif
+
 /*custom headers*/ 
 #include "mesh.h"
 #include "GCA.h"
@@ -111,6 +115,7 @@
 #define GCALAB_G		3
 
 #define WS(a) GCALab_Global[(a)]
+
 
 typedef struct GCALab_CL_Options_struct GCALab_CL_Options;
 typedef struct GCALabworkspace_struct GCALab_WS;
@@ -209,6 +214,16 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts);
 void GCALab_TextMode(GCALab_CL_Options* opts);
 char GCALab_BatchMode(GCALab_CL_Options* opts);
 
+/*Graphics Mode*/
+
+#ifdef WITH_GRAPHICS
+void GCALab_Graphics_Init(void);
+void GCALab_Graphics_Display(void);
+void GCALab_Graphics_KeyPressed(int kay, int x, int y);
+void GCALab_Graphics_Reshape(int w, int h);
+void GCALab_Graphics_Timer(int x);
+#endif
+/*Text and Batch Mode*/
 char **GCALab_CommandPrompt(int *numargs);
 char GCALab_PrintWorkSpace(unsigned char ws_id);
 char GCALab_ListWorkSpaces(void);
