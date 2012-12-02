@@ -1692,22 +1692,21 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 			TF[i] = (GetCellStatePacked(GCA,i,0) == GetCellStatePacked(GCA,i,1));
 		}
 
-		/*increment word lengths for those that did not change*/
-		/*set to 1 those that did*/
 		for (i=0;i<N;i++)
 		{
-			word_lengths[i] *= TF[i];
-		}
-		for (i=0;i<N;i++)
-		{
-			word_lengths[i]++;
-	//		fprintf(stderr,"%d ",word_lengths[i]);
-		}
-	//	fprintf(stderr,"\n");
-		/*increment counts for words that did change*/
-		for (i=0;i<N;i++)
-		{
-			count[word_lengths[i]*N+ i] += TF[i]; 
+			if (TF[i])
+			{
+				/*increment word lengths for those that did not change*/
+				word_lengths[i]++;
+			}
+			else
+			{
+				/*increment counts for words that did change*/
+				count[word_lengths[i]*N+i]++;
+				/*set to 1 those that did*/
+				word_lengths[i] = 1;
+			}
+
 		}
 	}
 
