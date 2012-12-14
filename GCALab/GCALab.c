@@ -75,7 +75,7 @@
  */
 
 #include "GCALab.h"
-
+#ifdef __linux__
 /*global array of workspace addresses*/
 GCALab_WS **GCALab_Global;
 unsigned int GCALab_numWS;
@@ -89,8 +89,11 @@ unsigned int cur_ws;
 GLfloat lightAmbient[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
 GLfloat lightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 0.4f };
 GLfloat lightPosition[4] = { 10.0f, 10.0f, 40.0f, 0.5f };
+GLUquadric* quad;
 float ScreenX,ScreenY,ScreenZ;
 float ScreenTheta, ScreenPhi;
+unsigned int cur_gca;
+unsigned int cur_res;
 #endif
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
@@ -186,9 +189,13 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 	GCALab_Graphics_Init();
 	glutDisplayFunc(GCALab_Graphics_Display);
 	glutReshapeFunc(GCALab_Graphics_Reshape);
-	glutSpecialFunc(GCALab_Graphics_KeyPressed);
+	glutKeyboardFunc(GCALab_Graphics_KeyPressed);
+	glutSpecialFunc(GCALab_Graphics_SpecialKeyPressed);
 	glutTimerFunc(1000/60,GCALab_Graphics_Timer,1);
 
+	cur_gca = 0;
+	cur_res = 0;
+	
 	glutMainLoop();
 #else
 	fprintf(stderr,"Graphics Mode not enabled in this build.\n");
@@ -1387,6 +1394,8 @@ void GCALab_Graphics_Init(void)
 	glEnable(GL_LIGHTING);
 	glColorMaterial(GL_FRONT,GL_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
+
+	quad = gluNewQuadric();
 	return;
 }
 
@@ -1394,52 +1403,176 @@ void GCALab_Graphics_Init(void)
  */
 void GCALab_Graphics_Display(void)
 {
+	mesh *m;
+	GraphCellularAutomaton *GCA;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 	glTranslatef(ScreenX,ScreenY,ScreenZ-40);
 	glRotatef(ScreenTheta+45,1,0,0);
 	glRotatef(ScreenPhi,0,1,0);
 	
-	glPushMatrix();
-	glBegin(GL_LINES);
-	glColor4f(1,0,0,1);
-	glVertex3f(-1,-1,-1);
-	glVertex3f(-1,1,-1);
-	glVertex3f(-1,1,-1);
-	glVertex3f(1,1,-1);
-	glVertex3f(1,1,-1);
-	glVertex3f(1,-1,-1);
-	glVertex3f(1,-1,-1);
-	glVertex3f(-1,-1,-1);
+	if (GCALab_numWS > 0)
+	{
+		int i,j;
+		if (WS(cur_ws)->numGCA > 0)
+		{
+			glPushMatrix();
+			glBegin(GL_TRIANGLES);
+			m = WS(cur_ws)->GCAGeometry[cur_gca];
+			GCA = WS(cur_ws)->GCAList[cur_gca];
+			for (i=0;i<m->fList->numFaces;i++)
+			{
+				if (GetCellStatePacked(GCA,i,0))
+				{
+					glColor3f(1.0,0.0,0.0);
+				}
+				else
+				{
+					glColor3f(0.2,0.2,0.2);
+				}
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+			}
+			glEnd();
+			glPopMatrix();
+		}
+	} 
+	else
+	{
+		glPushMatrix();
+		gluSphere(quad,0.5,5,5);
+		glPushMatrix();
+		glColor4f(1,0,0,1);
+		glTranslatef(0.0,0.5,0.0);
+		gluSphere(quad,0.5,5,5);
+		glPopMatrix();
+		glBegin(GL_LINES);
+		glColor4f(1,0,0,1);
+		glVertex3f(-1,-1,-1);
+		glVertex3f(-1,1,-1);
+		glVertex3f(-1,1,-1);
+		glVertex3f(1,1,-1);
+		glVertex3f(1,1,-1);
+		glVertex3f(1,-1,-1);
+		glVertex3f(1,-1,-1);
+		glVertex3f(-1,-1,-1);
 
-	glColor4f(0,1,0,1);
-	glVertex3f(-1,-1,1);
-	glVertex3f(-1,1,1);
-	glVertex3f(-1,1,1);
-	glVertex3f(1,1,1);
-	glVertex3f(1,1,1);
-	glVertex3f(1,-1,1);
-	glVertex3f(1,-1,1);
-	glVertex3f(-1,-1,1);
-	
-	glColor4f(0,0,1,1);
-	glVertex3f(-1,-1,1);
-	glVertex3f(-1,-1,-1);
-	glVertex3f(-1,1,1);
-	glVertex3f(-1,1,-1);
-	glVertex3f(1,1,1);
-	glVertex3f(1,1,-1);
-	glVertex3f(1,-1,1);
-	glVertex3f(1,-1,-1);
-	glEnd();
-	glPopMatrix();
-
+		glColor4f(0,1,0,1);
+		glVertex3f(-1,-1,1);
+		glVertex3f(-1,1,1);
+		glVertex3f(-1,1,1);
+		glVertex3f(1,1,1);
+		glVertex3f(1,1,1);
+		glVertex3f(1,-1,1);
+		glVertex3f(1,-1,1);
+		glVertex3f(-1,-1,1);
+		
+		glColor4f(0,0,1,1);
+		glVertex3f(-1,-1,1);
+		glVertex3f(-1,-1,-1);
+		glVertex3f(-1,1,1);
+		glVertex3f(-1,1,-1);
+		glVertex3f(1,1,1);
+		glVertex3f(1,1,-1);
+		glVertex3f(1,-1,1);
+		glVertex3f(1,-1,-1);
+		glEnd();
+		glPopMatrix();
+	}
 	glutSwapBuffers();
 }
 
-/* GCALab_Graphics_KeyPressed(): handles key press events
+/* GCALab_Graphics_keyPressed():handles standard key press events
  */
-void GCALab_Graphics_KeyPressed(int key, int x, int y)
+void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
+{
+	char rc;
+	switch(key)
+	{
+		case 'c': /*enter a command directly*/
+		{
+			char **userinput;
+			int numargs;
+			char* cmd;
+			int i;
+			/*get user input*/
+			userinput = GCALab_CommandPrompt(&numargs);
+			/*ensure input is valid*/
+			rc = GCALab_TestPointer((void*)userinput);
+			GCALab_HandleErr(rc);
+			
+			cmd = userinput[0];
+			for (i=0;i<GCALab_numCmds;i++)
+			{
+				if (!strcmp(cmd,GCALab_Cmds[i].id))
+				{
+					rc = (*(GCALab_Cmds[i].f))(numargs,userinput);
+					GCALab_HandleErr(rc);
+				}
+			}
+			/*clean up user args*/
+			for (i=0;i<numargs;i++)
+			{
+				free(userinput[i]);
+			}
+			free(userinput);
+		}
+			break;
+		case '>':
+		{
+			unsigned int new_ws;
+			/*next workspace*/
+			new_ws = cur_ws+1;
+			rc = GCALab_ValidWSId(new_ws);
+			/*only update if the id was valid*/
+			if (rc == GCALAB_INVALID_WS_ERROR) return;
+			cur_ws = new_ws;
+			fprintf(stdout,"Current Workspace is ID = %d\n",cur_ws);
+		}
+			break;
+		case '<':
+		{
+			unsigned int new_ws;
+			/*prev workspace*/
+			new_ws = cur_ws-1;
+			rc = GCALab_ValidWSId(new_ws);
+			/*only update if the id was valid*/
+			if (rc == GCALAB_INVALID_WS_ERROR) return;
+			cur_ws = new_ws;
+			fprintf(stdout,"Current Workspace is ID = %d\n",cur_ws);
+		}	
+			break;
+		case ']':
+			/*next gca*/
+			cur_gca = (cur_gca >= WS(cur_ws)->numGCA-1) ?  WS(cur_ws)->numGCA-1  : cur_gca + 1;
+			fprintf(stdout,"GCA %d selected\n",cur_gca);
+			break;
+		case '[':
+			/*prev gca*/
+			cur_gca = (cur_gca <= 0) ?  0 : cur_gca - 1;
+			fprintf(stdout,"GCA %d selected\n",cur_gca);
+			break;
+		case '}':
+			/*next result*/
+			cur_res = (cur_res >= WS(cur_ws)->numresults-1) ?  WS(cur_ws)->numresults-1 : cur_res + 1;
+			fprintf(stdout,"Result %d selected\n",cur_res);
+			break;
+		case '{':
+			/*prev result*/
+			cur_res = (cur_res <= 0) ? 0 : cur_res - 1;
+			fprintf(stdout,"Result %d selected\n",cur_res);
+			break;
+		case 'Q':
+			/*quit GCALab*/
+			GCALab_ShutDown(0); 
+			break;
+	}
+}
+
+/* GCALab_Graphics_SpecialKeyPressed(): handles special key press events
+ */
+void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y)
 {
 	switch(key)
 	{
@@ -2426,4 +2559,9 @@ char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt_id,int nparams, char *
 	(*res)->data = (void*)freqs;
 	return GCALAB_SUCCESS;
 }
-
+#else
+int main(){
+	printf("Install a proper operating system!\n");
+	printf("See http://www.fedoraproject.org\n");
+}
+#endif

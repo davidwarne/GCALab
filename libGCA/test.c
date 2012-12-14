@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "GCA.h"
 #define P 50
 unsigned char bitcount[16] = {0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
@@ -733,12 +734,59 @@ int testAttrCycles(int argc, char ** argv)
 	}
 }
 
+int benchmarkRevAlg(int argc,char **argv)
+{
+	GraphCellularAutomaton *ECA;
+	unsigned int i,j;
+	unsigned int r;
+	clock_t tic,toc;
+	unsigned char g;
+	clock_t time_g,time_ng;
+	int numg,numng;
+	for (i=4;i<10001;i*=2)
+	{
+		time_g = 0;
+		time_ng = 0;
+		numg = 0;
+		numng = 0;
+		for (r=0;r<256;r++)
+		{
+			ECA = CreateECA(i,3,r);
+			SetCAIC(ECA,NULL,NOISE_IC_TYPE);
+			tic = clock();
+			g = IsGOE(ECA);
+			toc = clock();
+			if (g)
+			{
+				time_g += toc;
+				time_g -= tic;
+				numg++;
+			}
+			else
+			{
+				time_ng += toc;
+				time_ng -= tic;
+				numng++;
+			}
+			free(ECA->ruleLUT);
+			for (j=0;j<ECA->params->WSIZE;j++)
+				free(ECA->st_pattern[j]);
+			free(ECA->st_pattern);
+			free(ECA->params->graph);
+			free(ECA->params);
+			free(ECA);
+		}
+		printf("%d,%d,%d,%d,%u,%d\n",time_g,time_ng,numg,numng,i,CLOCKS_PER_SEC);
+	}
+}
+
 int main(int argc, char** argv)
 {
 	/*testbitaccess(argc,argv);*/
 	/*testECA(argc,argv);*/
-	testRevAlgorithm(argc,argv);
+	/*testRevAlgorithm(argc,argv);*/
 	/*testCompress(argc,argv);*/
 	/*testSE(argc,argv);*/
 	/*testAttrCycles(argc,argv);*/
+	benchmarkRevAlg(argc,argv);
 }

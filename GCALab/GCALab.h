@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __linux__
 /*for threading*/
 #include <pthread.h>
 
@@ -219,7 +220,8 @@ char GCALab_BatchMode(GCALab_CL_Options* opts);
 #ifdef WITH_GRAPHICS
 void GCALab_Graphics_Init(void);
 void GCALab_Graphics_Display(void);
-void GCALab_Graphics_KeyPressed(int kay, int x, int y);
+void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y);
+void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y);
 void GCALab_Graphics_Reshape(int w, int h);
 void GCALab_Graphics_Timer(int x);
 #endif
@@ -274,4 +276,5 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt,int argc, char ** a
 char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Reverse(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+#endif
 #endif

@@ -143,7 +143,7 @@ GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA);
 /* cell and config get/sets functions*/
 void SetCAIC(GraphCellularAutomaton *GCA,chunk *ic,unsigned char type);
 void ResetCA(GraphCellularAutomaton *GCA);
-state GetCellState(GraphCellularAutomaton *GCA, unsigned int i,unsigned int t);
+state GetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,unsigned int t);
 void SetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,state s);
 state GetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsigned int i);
 void SetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsigned int i,state s);
@@ -157,6 +157,7 @@ unsigned int CANextStep(GraphCellularAutomaton *GCA);
 chunk* CASimToAttCyc(GraphCellularAutomaton *GCA,unsigned int t);
 unsigned char IsAttCyc(GraphCellularAutomaton *GCA);
 chunk *CAGetPreImages(GraphCellularAutomaton *GCA,unsigned int* n,unsigned char* flags);
+unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *theta_i,state *theta_j,unsigned int startcell);
 unsigned char *GetFlags(GraphCellularAutomaton *GCA);
 unsigned char IsGOE(GraphCellularAutomaton *GCA);
 unsigned char isValid(GraphCellularAutomaton *GCA,chunk *config,unsigned char *flags);

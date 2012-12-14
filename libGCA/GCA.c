@@ -995,7 +995,18 @@ chunk *CAGetPreImages(GraphCellularAutomaton *GCA,unsigned int* n,unsigned char*
 	return preImages;
 }
 
-unsigned char RevAlgIter(GraphCellularAutomaton *GCA,unsigned char *flags,state *theta_i,state *theta_j,unsigned int startcell)
+/* NhElim(): Implementation of the Neighbourhood Elimination operation. Eliminates currently 
+ *           inconsistent neighbourhoods for each cell.
+ * Parameters:
+ *      GCA - you should definitely know what this by now :)
+ *      flags - an array F : F(i,j) = 0 => neighbourhood i is not possible for cell j in any 
+ *              pre-image
+ *      theta_i - buffer to store boundary configurations of i to j
+ *      theta_j - buffer to store boudnary configurations of j to i
+ *      startcell - last cell to be visited in the algorithm
+ *     
+ */
+unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *theta_i,state *theta_j,unsigned int startcell)
 {
 	unsigned char r;
 	state *W_i,*W_j;
@@ -1178,6 +1189,12 @@ unsigned char RevAlgIter(GraphCellularAutomaton *GCA,unsigned char *flags,state 
 
 /* GetFlags(): creates an array F in N x s^k where element F(i,j) = 0 means neighbourhood
  *             i cannot occur for cell j in any pre-image.
+ * Parameters:
+ *     GCA - well what do you reckon?!!
+ *
+ * Returns:
+ *     flags - an array such that flags(i,j) = 0 => neighbourhood i cannot occur for
+ *             cell j in any pre-image.
  */
 unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 {
@@ -1212,8 +1229,6 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 		return NULL;
 	}
 
-	/*TODO: Implement my algorithm for computing all pre-images at once*/
-	/* So far I can't see why it would not work, could be a paper in it?*/
 	
 	/*initial flags - set to 1 if a possible pre-neighbourhood else 0*/
 	for (i=0;i<GCA->params->N;i++)
@@ -1236,7 +1251,7 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 		iter = 1;
 		while (iter)
 		{
-			RevAlgIter(GCA,flags,theta_i,theta_j,0);
+			NhElim(GCA,flags,theta_i,theta_j,0);
 			/*test for convergence*/
 			sum = 0;
 			for (i=0;i<(GCA->params->N)*(GCA->LUT_size);i++)
@@ -1311,7 +1326,7 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 							tmp_flags[i*(GCA->LUT_size)+k] = 0;
 						}
 						/*run an iteration*/
-						RevAlgIter(GCA,tmp_flags,theta_i,theta_j,i);
+						NhElim(GCA,tmp_flags,theta_i,theta_j,i);
 
 						/*did it get eliminated*/
 						if(tmp_flags[i*(GCA->LUT_size)+j] == 0)
@@ -1322,16 +1337,17 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 						else
 						{
 							memcpy(tmp_flags,flags,(GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char));
+							exit = 1;
 						}
 					}
 
-					if (invalid)
+					if (invalid || exit)
 					{
 						break;
 					}
 				}
 
-				if(invalid)
+				if(invalid || exit)
 				{
 					break;
 				}
