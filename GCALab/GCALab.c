@@ -58,6 +58,9 @@
  *                                  pointer framework.
  *                             iv. removed switch statement from DoNextCommand and replaced
  *                                  it with a call to a function pointer.
+ *       v 0.12 (14/12/2012) - i. Implemented Initial version OpenGL callbacks
+ *                             ii. basic CA animation now supported in Display func.
+ *                             iii. made text mode commands accessable via 'c' key
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -86,12 +89,14 @@ unsigned int GCALab_numOps;
 unsigned char GCALab_mode;
 unsigned int cur_ws;
 #ifdef WITH_GRAPHICS
-GLfloat lightAmbient[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
-GLfloat lightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 0.4f };
-GLfloat lightPosition[4] = { 10.0f, 10.0f, 40.0f, 0.5f };
+/* light settings*/
+GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
+GLfloat diffuseLight[] = { 3.0f, 3.0f, 3.0f, 1.0f };
+GLfloat position[] = { 5.0f, 5.0f, 5.0f, 1.0f };
+GLfloat positionMirror[] = { 5.0f, -5.0f, 5.0f, 1.0f };
 GLUquadric* quad;
-float ScreenX,ScreenY,ScreenZ;
-float ScreenTheta, ScreenPhi;
+float translateX,translateY,zoom;
+float theta, phi;
 unsigned int cur_gca;
 unsigned int cur_res;
 #endif
@@ -1382,19 +1387,23 @@ char** strvncpy(char **strv,int c, int n)
  */
 void GCALab_Graphics_Init(void)
 {
-	/*smooth shading*/
+	/*background colour*/
+	glClearColor(0.3,0.3,0.3,1.0);
+	/*enable depth test, blending, back face culling, lighting, and anti-aliasing*/
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_MULTISAMPLE); 
+	/*lighting model*/
+	glEnable(GL_LIGHT0); 	
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+	glLightfv(GL_LIGHT0, GL_POSITION, position)   ; 
+	/*smooth shading model*/
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0,0.0,0.0,0.0);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glLightfv(GL_LIGHT1,GL_AMBIENT,lightAmbient);
-	glLightfv(GL_LIGHT1,GL_DIFFUSE,lightDiffuse);
-	glLightfv(GL_LIGHT1,GL_POSITION,lightPosition);
-	glEnable(GL_LIGHT1);
-	glEnable(GL_LIGHTING);
-	glColorMaterial(GL_FRONT,GL_DIFFUSE);
-	glEnable(GL_COLOR_MATERIAL);
-
+	
 	quad = gluNewQuadric();
 	return;
 }
@@ -1405,18 +1414,30 @@ void GCALab_Graphics_Display(void)
 {
 	mesh *m;
 	GraphCellularAutomaton *GCA;
+	int lim;
+	int i,j;
+	/*clear screen for a new render*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-	glTranslatef(ScreenX,ScreenY,ScreenZ-40);
-	glRotatef(ScreenTheta+45,1,0,0);
-	glRotatef(ScreenPhi,0,1,0);
+	/*transformations*/
+	glTranslatef(translateX,translateY,zoom-50.5f);
+	glRotatef(phi+30.0f,1.0f,0.0f,0.0f);
+	glRotatef(theta,0.0f,1.0f,0.0f);
 	
+	/* draw the reflected scene first*/
+	if (1)
+	{
+		glLightfv(GL_LIGHT0,GL_POSITION,positionMirror);
+		glPushMatrix();
+			glFrontFace(GL_CW);
+			glScalef(1.0,-1.0,1.0);
 	if (GCALab_numWS > 0)
 	{
-		int i,j;
 		if (WS(cur_ws)->numGCA > 0)
 		{
+			float *n;
 			glPushMatrix();
+			glTranslatef(0.0,2.0,0.0);
 			glBegin(GL_TRIANGLES);
 			m = WS(cur_ws)->GCAGeometry[cur_gca];
 			GCA = WS(cur_ws)->GCAList[cur_gca];
@@ -1424,12 +1445,28 @@ void GCALab_Graphics_Display(void)
 			{
 				if (GetCellStatePacked(GCA,i,0))
 				{
-					glColor3f(1.0,0.0,0.0);
+					GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
+					GLfloat em[4] = {0.0,0.0,0.0,1.0};
+					GLfloat spec[4] = {0.7,0.7,0.7,0.5};
+					GLfloat shininess  = 128.0;
+   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
 				}
 				else
 				{
-					glColor3f(0.2,0.2,0.2);
+					GLfloat ambdif[] = {0.62745,0.564705,0.439216,1.0};
+					GLfloat em[] = {0.0,0.0,0.0,1.0};
+					GLfloat spec[] = {0.7,0.7,0.7,0.5};
+					GLfloat shininess  = 128.0;
+   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
 				}
+				n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
+				glNormal3fv(n);
 				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
 				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
 				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
@@ -1440,11 +1477,169 @@ void GCALab_Graphics_Display(void)
 	} 
 	else
 	{
-		glPushMatrix();
+	
+			glPushMatrix();
+			glTranslatef(0.0,2.0,0.0);
+		GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
+		GLfloat em[4] = {0.0,0.0,0.0,1.0};
+		GLfloat spec[4] = {0.7,0.7,0.7,0.5};
+		GLfloat shininess  = 128.0;
+   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
 		gluSphere(quad,0.5,5,5);
 		glPushMatrix();
 		glColor4f(1,0,0,1);
 		glTranslatef(0.0,0.5,0.0);
+		ambdif[0] = 0.62745;
+		ambdif[1] = 0.564705;
+		ambdif[2] = 0.439216;
+		ambdif[3] = 1.0;
+   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+		gluSphere(quad,0.5,5,5);
+		glPopMatrix();
+		glBegin(GL_LINES);
+		glColor4f(1,0,0,1);
+		glVertex3f(-1,-1,-1);
+		glVertex3f(-1,1,-1);
+		glVertex3f(-1,1,-1);
+		glVertex3f(1,1,-1);
+		glVertex3f(1,1,-1);
+		glVertex3f(1,-1,-1);
+		glVertex3f(1,-1,-1);
+		glVertex3f(-1,-1,-1);
+
+		glColor4f(0,1,0,1);
+		glVertex3f(-1,-1,1);
+		glVertex3f(-1,1,1);
+		glVertex3f(-1,1,1);
+		glVertex3f(1,1,1);
+		glVertex3f(1,1,1);
+		glVertex3f(1,-1,1);
+		glVertex3f(1,-1,1);
+		glVertex3f(-1,-1,1);
+		
+		glColor4f(0,0,1,1);
+		glVertex3f(-1,-1,1);
+		glVertex3f(-1,-1,-1);
+		glVertex3f(-1,1,1);
+		glVertex3f(-1,1,-1);
+		glVertex3f(1,1,1);
+		glVertex3f(1,1,-1);
+		glVertex3f(1,-1,1);
+		glVertex3f(1,-1,-1);
+		glEnd();
+			glPopMatrix();
+	}
+    		glFrontFace(GL_CCW);
+    	glPopMatrix();
+    }
+    
+	/* draw the transparent surface*/
+    glDisable(GL_LIGHTING);
+	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+
+	lim = 200;
+
+	glColor4f(0.0,0.0,0.0,0.8);
+	glBegin(GL_QUADS);
+		glVertex3f((float)(-lim/2),0.0,(float)(-lim/2));
+		glVertex3f((float)(-lim/2),0.0,(float)(lim/2));
+		glVertex3f((float)(lim/2),0.0,(float)(lim/2));
+		glVertex3f((float)(lim/2),0.0,(float)(-lim/2));
+	glEnd();
+
+	/* draw some gridlines*/
+	glColor4f(0.2,0.2,0.2,0.8);
+	for (i=0;i<lim;i++)
+	{
+		for (j=0;j<lim;j++)
+		{
+			glBegin(GL_LINE_LOOP);
+				glVertex3f((float)(-lim/2+i),0.2,(float)(-lim/2+j));
+				glVertex3f((float)(-lim/2+i),0.2,(float)(-lim/2+1+j));
+				glVertex3f((float)(-lim/2+1+i),0.2,(float)(-lim/2+1+j));
+				glVertex3f((float)(-lim/2+1+i),0.2,(float)(-lim/2+j));
+			glEnd();		
+		}
+	}
+	glEnable(GL_LIGHTING);
+
+	/* draw the solar system*/
+	glLightfv(GL_LIGHT0, GL_POSITION, position); 
+	
+	if (GCALab_numWS > 0)
+	{
+		if (WS(cur_ws)->numGCA > 0)
+		{
+			float *n;
+			glPushMatrix();
+			glTranslatef(0.0,2.0,0.0);
+			glBegin(GL_TRIANGLES);
+			m = WS(cur_ws)->GCAGeometry[cur_gca];
+			GCA = WS(cur_ws)->GCAList[cur_gca];
+			for (i=0;i<m->fList->numFaces;i++)
+			{
+				if (GetCellStatePacked(GCA,i,0))
+				{
+					GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
+					GLfloat em[4] = {0.0,0.0,0.0,1.0};
+					GLfloat spec[4] = {0.7,0.7,0.7,0.5};
+					GLfloat shininess  = 128.0;
+   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+				}
+				else
+				{
+					GLfloat ambdif[] = {0.62745,0.564705,0.439216,1.0};
+					GLfloat em[] = {0.0,0.0,0.0,1.0};
+					GLfloat spec[] = {0.7,0.7,0.7,0.5};
+					GLfloat shininess  = 128.0;
+   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+				}
+				n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
+				glNormal3fv(n);
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+			}
+			glEnd();
+		glPopMatrix();
+		}
+	} 
+	else
+	{
+			glPushMatrix();
+			glTranslatef(0.0,2.0,0.0);
+		GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
+		GLfloat em[4] = {0.0,0.0,0.0,1.0};
+		GLfloat spec[4] = {0.7,0.7,0.7,0.5};
+		GLfloat shininess  = 128.0;
+   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+		gluSphere(quad,0.5,5,5);
+		glPushMatrix();
+		glColor4f(1,0,0,1);
+		glTranslatef(0.0,0.5,0.0);
+		ambdif[0] = 0.62745;
+		ambdif[1] = 0.564705;
+		ambdif[2] = 0.439216;
+		ambdif[3] = 1.0;
+   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
 		gluSphere(quad,0.5,5,5);
 		glPopMatrix();
 		glBegin(GL_LINES);
@@ -1577,28 +1772,36 @@ void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y)
 	switch(key)
 	{
 		case GLUT_KEY_LEFT: 
-			ScreenX--;
+			theta -= 0.5;
+			theta = (theta < 0.0) ? 360.0 : theta;
 			break;
 		case GLUT_KEY_UP: 
-			ScreenZ--;
+			zoom -= 0.1;
 			break;
 		case GLUT_KEY_RIGHT: 
-			ScreenX++;
+			theta += 0.5;
+			theta = (theta > 360.0) ? 0.0 : theta;
 			break;
 		case GLUT_KEY_DOWN: 
-			ScreenZ++;
+			zoom += 0.1;
 			break;
 		case GLUT_KEY_HOME:
-			ScreenTheta--;
+			translateY += 0.1;
 			break;
 		case GLUT_KEY_END:
-			ScreenTheta++;
+			translateY -= 0.1;
+			break;
+		case GLUT_KEY_F12:
+			translateX += 0.1;
+			break;
+		case GLUT_KEY_INSERT:
+			translateX -= 0.1;
 			break;
 		case GLUT_KEY_PAGE_UP:
-			ScreenPhi--;
+			phi+=0.5;
 			break;
 		case GLUT_KEY_PAGE_DOWN:
-			ScreenPhi++;
+			phi-=0.5;
 			break;
 	}
 }
@@ -1613,11 +1816,15 @@ void GCALab_Graphics_Reshape(int w, int h)
 		h = 1;
 	}
 	glViewport(0,0,w,h);
+	/* define projection matirx*/
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45.0f,w/h,0.1f,100.0f);
+	gluPerspective(45.0f,((float)w)/((float)h),0.1f,1000000.0f);
+	/* define transformation matrix from model to world coordinates*/
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
+	gluLookAt(0.0,0.0,-10.0,0.0,0.0,0.0,0.0,1.0,0.0);
 	return;
 }
 /* GCALab_Graphics_Timer(): timer callback called roughly 60
