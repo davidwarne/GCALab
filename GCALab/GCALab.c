@@ -61,6 +61,9 @@
  *       v 0.12 (14/12/2012) - i. Implemented Initial version OpenGL callbacks
  *                             ii. basic CA animation now supported in Display func.
  *                             iii. made text mode commands accessable via 'c' key
+ *       v 0.13 (11/01/2013) - i. Happy new year!
+ *                             ii. Added mouse handlers
+ *                             iii. cleaned up the display function.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -92,13 +95,16 @@ unsigned int cur_ws;
 /* light settings*/
 GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
 GLfloat diffuseLight[] = { 3.0f, 3.0f, 3.0f, 1.0f };
-GLfloat position[] = { 5.0f, 5.0f, 5.0f, 1.0f };
-GLfloat positionMirror[] = { 5.0f, -5.0f, 5.0f, 1.0f };
+GLfloat position[] = { 2.0f, 1.0f, 2.0f, 1.0f };
+GLfloat positionMirror[] = { 2.0f, -1.0f, 2.0f, 1.0f };
 GLUquadric* quad;
 float translateX,translateY,zoom;
 float theta, phi;
 unsigned int cur_gca;
 unsigned int cur_res;
+unsigned char moving;
+int xprev;
+int yprev;
 #endif
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
@@ -184,11 +190,13 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 	/*init display mode*/
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	/*get the screen resolution*/
-	hPix = glutGet(GLUT_SCREEN_HEIGHT);
+	/*hPix = glutGet(GLUT_SCREEN_HEIGHT);
 	wPix = glutGet(GLUT_SCREEN_WIDTH);
-
+	*/
+	hPix = 1024;
+	wPix = 1024;
 	/*set up window*/
-	glutInitWindowSize(wPix/2,hPix/2);
+	glutInitWindowSize(wPix,hPix);
 	glutInitWindowPosition(0,0);
 	glutCreateWindow("GCALab");
 	GCALab_Graphics_Init();
@@ -196,11 +204,13 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 	glutReshapeFunc(GCALab_Graphics_Reshape);
 	glutKeyboardFunc(GCALab_Graphics_KeyPressed);
 	glutSpecialFunc(GCALab_Graphics_SpecialKeyPressed);
+	glutMouseFunc(GCALab_Graphics_MouseClick);
+	glutMotionFunc(GCALab_Graphics_MouseMove);
 	glutTimerFunc(1000/60,GCALab_Graphics_Timer,1);
 
 	cur_gca = 0;
 	cur_res = 0;
-	
+	moving = 0;	
 	glutMainLoop();
 #else
 	fprintf(stderr,"Graphics Mode not enabled in this build.\n");
@@ -859,6 +869,7 @@ GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 						break;
 					case 'b':
 						CL_opt->mode = GCALAB_BATCH_MODE;
+						CL_opt->ScriptFile = argv[++i];
 						break;
 					case 'g':
 						CL_opt->mode = GCALAB_GRAPHICS_MODE;
@@ -1412,133 +1423,161 @@ void GCALab_Graphics_Init(void)
  */
 void GCALab_Graphics_Display(void)
 {
-	mesh *m;
-	GraphCellularAutomaton *GCA;
-	int lim;
-	int i,j;
+#define OFFSET 1.5
 	/*clear screen for a new render*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
+	
 	/*transformations*/
-	glTranslatef(translateX,translateY,zoom-50.5f);
+	glTranslatef(translateX,translateY,zoom-10.5f);
 	glRotatef(phi+30.0f,1.0f,0.0f,0.0f);
 	glRotatef(theta,0.0f,1.0f,0.0f);
 	
 	/* draw the reflected scene first*/
-	if (1)
-	{
-		glLightfv(GL_LIGHT0,GL_POSITION,positionMirror);
-		glPushMatrix();
-			glFrontFace(GL_CW);
-			glScalef(1.0,-1.0,1.0);
+	glLightfv(GL_LIGHT0,GL_POSITION,positionMirror);
+	glPushMatrix();
+	glFrontFace(GL_CW);
+	glScalef(1.0,-1.0,1.0);
 	if (GCALab_numWS > 0)
 	{
 		if (WS(cur_ws)->numGCA > 0)
 		{
-			float *n;
 			glPushMatrix();
-			glTranslatef(0.0,2.0,0.0);
-			glBegin(GL_TRIANGLES);
-			m = WS(cur_ws)->GCAGeometry[cur_gca];
-			GCA = WS(cur_ws)->GCAList[cur_gca];
-			for (i=0;i<m->fList->numFaces;i++)
-			{
-				if (GetCellStatePacked(GCA,i,0))
-				{
-					GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
-					GLfloat em[4] = {0.0,0.0,0.0,1.0};
-					GLfloat spec[4] = {0.7,0.7,0.7,0.5};
-					GLfloat shininess  = 128.0;
-   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-				}
-				else
-				{
-					GLfloat ambdif[] = {0.62745,0.564705,0.439216,1.0};
-					GLfloat em[] = {0.0,0.0,0.0,1.0};
-					GLfloat spec[] = {0.7,0.7,0.7,0.5};
-					GLfloat shininess  = 128.0;
-   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-				}
-				n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
-				glNormal3fv(n);
-				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
-				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
-				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
-			}
-			glEnd();
+			glTranslatef(0.0,OFFSET,0.0);
+			GCALab_Graphics_DrawGCA(cur_ws,cur_gca);
 			glPopMatrix();
 		}
 	} 
 	else
 	{
-	
-			glPushMatrix();
-			glTranslatef(0.0,2.0,0.0);
-		GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
-		GLfloat em[4] = {0.0,0.0,0.0,1.0};
-		GLfloat spec[4] = {0.7,0.7,0.7,0.5};
-		GLfloat shininess  = 128.0;
-   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-		gluSphere(quad,0.5,5,5);
 		glPushMatrix();
-		glColor4f(1,0,0,1);
-		glTranslatef(0.0,0.5,0.0);
-		ambdif[0] = 0.62745;
-		ambdif[1] = 0.564705;
-		ambdif[2] = 0.439216;
-		ambdif[3] = 1.0;
-   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-		gluSphere(quad,0.5,5,5);
+		glTranslatef(0.0,OFFSET,0.0);
+		GCALab_Graphics_DrawBBox();
 		glPopMatrix();
-		glBegin(GL_LINES);
-		glColor4f(1,0,0,1);
-		glVertex3f(-1,-1,-1);
-		glVertex3f(-1,1,-1);
-		glVertex3f(-1,1,-1);
-		glVertex3f(1,1,-1);
-		glVertex3f(1,1,-1);
-		glVertex3f(1,-1,-1);
-		glVertex3f(1,-1,-1);
-		glVertex3f(-1,-1,-1);
-
-		glColor4f(0,1,0,1);
-		glVertex3f(-1,-1,1);
-		glVertex3f(-1,1,1);
-		glVertex3f(-1,1,1);
-		glVertex3f(1,1,1);
-		glVertex3f(1,1,1);
-		glVertex3f(1,-1,1);
-		glVertex3f(1,-1,1);
-		glVertex3f(-1,-1,1);
-		
-		glColor4f(0,0,1,1);
-		glVertex3f(-1,-1,1);
-		glVertex3f(-1,-1,-1);
-		glVertex3f(-1,1,1);
-		glVertex3f(-1,1,-1);
-		glVertex3f(1,1,1);
-		glVertex3f(1,1,-1);
-		glVertex3f(1,-1,1);
-		glVertex3f(1,-1,-1);
-		glEnd();
-			glPopMatrix();
 	}
-    		glFrontFace(GL_CCW);
-    	glPopMatrix();
-    }
+	glFrontFace(GL_CCW);
+	glPopMatrix();
     
+
+	GCALab_Graphics_DrawGrid();
+
+	/* draw the "real" scene... but how do we define real?*/
+	glLightfv(GL_LIGHT0, GL_POSITION, position); 
+	
+	if (GCALab_numWS > 0)
+	{
+		if (WS(cur_ws)->numGCA > 0)
+		{
+			glPushMatrix();
+			glTranslatef(0.0,OFFSET,0.0);
+			GCALab_Graphics_DrawGCA(cur_ws,cur_gca);
+			glPopMatrix();
+		}
+	} 
+	else
+	{
+		glPushMatrix();
+		glTranslatef(0.0,OFFSET,0.0);
+		GCALab_Graphics_DrawBBox();
+		glPopMatrix();
+	}
+	glutSwapBuffers();
+}
+
+/* GCALab_Graphics_DrawGCA(): draws the selected graph cellular automaton
+ *                            to the OpenGL scene.
+ */
+void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
+{
+	float *n;
+	mesh *m;
+	int i;
+	GraphCellularAutomaton *gca;
+	m = WS(ws_id)->GCAGeometry[gca_id];
+	gca = WS(ws_id)->GCAList[gca_id];
+	
+	/*we assume that we are dealing with a triangular mesh*/
+	/*TODO: expand this to support other meshes*/
+	glBegin(GL_TRIANGLES);
+
+	for (i=0;i<m->fList->numFaces;i++)
+	{
+		/*change material properties based on cell state*/
+		/*TODO: for now very 'binary' state based, fix this*/
+		if (GetCellStatePacked(gca,i,0))
+		{
+			GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
+			GLfloat em[4] = {0.0,0.0,0.0,1.0};
+			GLfloat spec[4] = {0.7,0.7,0.7,0.5};
+			GLfloat shininess  = 128.0;
+			glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+			glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+			glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+			glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+		}
+		else
+		{
+			GLfloat ambdif[] = {0.62745,0.564705,0.439216,1.0};
+			GLfloat em[] = {0.0,0.0,0.0,1.0};
+			GLfloat spec[] = {0.7,0.7,0.7,0.5};
+			GLfloat shininess  = 128.0;
+   			glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+  			glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+    		glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+    		glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+		}
+		/*compute the cell normal*/
+		n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
+		/*draw the cell*/
+		glNormal3fv(n);
+		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
+		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
+		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+	}
+	glEnd();
+}
+
+/* GCALab_Graphics_DrawBBox(): draws a bounding box
+ */
+void GCALab_Graphics_DrawBBox(void)
+{
+	glBegin(GL_LINES);
+	glColor4f(1,0,0,1);
+	glVertex3f(-1,-1,-1);
+	glVertex3f(-1,1,-1);
+	glVertex3f(-1,1,-1);
+	glVertex3f(1,1,-1);
+	glVertex3f(1,1,-1);
+	glVertex3f(1,-1,-1);
+	glVertex3f(1,-1,-1);
+	glVertex3f(-1,-1,-1);
+	glColor4f(0,1,0,1);
+	glVertex3f(-1,-1,1);
+	glVertex3f(-1,1,1);
+	glVertex3f(-1,1,1);
+	glVertex3f(1,1,1);
+	glVertex3f(1,1,1);
+	glVertex3f(1,-1,1);
+	glVertex3f(1,-1,1);
+	glVertex3f(-1,-1,1);
+
+	glColor4f(0,0,1,1);
+	glVertex3f(-1,-1,1);
+	glVertex3f(-1,-1,-1);
+	glVertex3f(-1,1,1);
+	glVertex3f(-1,1,-1);
+	glVertex3f(1,1,1);
+	glVertex3f(1,1,-1);
+	glVertex3f(1,-1,1);
+	glVertex3f(1,-1,-1);
+	glEnd();
+}
+
+/* GCALab_Graphics_DrawGrid(): draws a grid to orientate the user
+ */
+void GCALab_Graphics_DrawGrid(void)
+{
+	int lim,i,j;
 	/* draw the transparent surface*/
     glDisable(GL_LIGHTING);
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
@@ -1568,114 +1607,6 @@ void GCALab_Graphics_Display(void)
 		}
 	}
 	glEnable(GL_LIGHTING);
-
-	/* draw the solar system*/
-	glLightfv(GL_LIGHT0, GL_POSITION, position); 
-	
-	if (GCALab_numWS > 0)
-	{
-		if (WS(cur_ws)->numGCA > 0)
-		{
-			float *n;
-			glPushMatrix();
-			glTranslatef(0.0,2.0,0.0);
-			glBegin(GL_TRIANGLES);
-			m = WS(cur_ws)->GCAGeometry[cur_gca];
-			GCA = WS(cur_ws)->GCAList[cur_gca];
-			for (i=0;i<m->fList->numFaces;i++)
-			{
-				if (GetCellStatePacked(GCA,i,0))
-				{
-					GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
-					GLfloat em[4] = {0.0,0.0,0.0,1.0};
-					GLfloat spec[4] = {0.7,0.7,0.7,0.5};
-					GLfloat shininess  = 128.0;
-   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-				}
-				else
-				{
-					GLfloat ambdif[] = {0.62745,0.564705,0.439216,1.0};
-					GLfloat em[] = {0.0,0.0,0.0,1.0};
-					GLfloat spec[] = {0.7,0.7,0.7,0.5};
-					GLfloat shininess  = 128.0;
-   					glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  					glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    				glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    				glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-				}
-				n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
-				glNormal3fv(n);
-				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
-				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
-				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
-			}
-			glEnd();
-		glPopMatrix();
-		}
-	} 
-	else
-	{
-			glPushMatrix();
-			glTranslatef(0.0,2.0,0.0);
-		GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
-		GLfloat em[4] = {0.0,0.0,0.0,1.0};
-		GLfloat spec[4] = {0.7,0.7,0.7,0.5};
-		GLfloat shininess  = 128.0;
-   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-		gluSphere(quad,0.5,5,5);
-		glPushMatrix();
-		glColor4f(1,0,0,1);
-		glTranslatef(0.0,0.5,0.0);
-		ambdif[0] = 0.62745;
-		ambdif[1] = 0.564705;
-		ambdif[2] = 0.439216;
-		ambdif[3] = 1.0;
-   		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    	glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    	glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
-		gluSphere(quad,0.5,5,5);
-		glPopMatrix();
-		glBegin(GL_LINES);
-		glColor4f(1,0,0,1);
-		glVertex3f(-1,-1,-1);
-		glVertex3f(-1,1,-1);
-		glVertex3f(-1,1,-1);
-		glVertex3f(1,1,-1);
-		glVertex3f(1,1,-1);
-		glVertex3f(1,-1,-1);
-		glVertex3f(1,-1,-1);
-		glVertex3f(-1,-1,-1);
-
-		glColor4f(0,1,0,1);
-		glVertex3f(-1,-1,1);
-		glVertex3f(-1,1,1);
-		glVertex3f(-1,1,1);
-		glVertex3f(1,1,1);
-		glVertex3f(1,1,1);
-		glVertex3f(1,-1,1);
-		glVertex3f(1,-1,1);
-		glVertex3f(-1,-1,1);
-		
-		glColor4f(0,0,1,1);
-		glVertex3f(-1,-1,1);
-		glVertex3f(-1,-1,-1);
-		glVertex3f(-1,1,1);
-		glVertex3f(-1,1,-1);
-		glVertex3f(1,1,1);
-		glVertex3f(1,1,-1);
-		glVertex3f(1,-1,1);
-		glVertex3f(1,-1,-1);
-		glEnd();
-		glPopMatrix();
-	}
-	glutSwapBuffers();
 }
 
 /* GCALab_Graphics_keyPressed():handles standard key press events
@@ -1762,6 +1693,8 @@ void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
 			/*quit GCALab*/
 			GCALab_ShutDown(0); 
 			break;
+		case 's':
+			break;
 	}
 }
 
@@ -1803,6 +1736,45 @@ void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y)
 		case GLUT_KEY_PAGE_DOWN:
 			phi-=0.5;
 			break;
+	}
+}
+/* GCALab_Graphics_Mouse(): Handles mouse events
+ */
+void GCALab_Graphics_MouseClick(int button,int state,int x, int y)
+{
+
+	switch(button)
+	{
+		case GLUT_LEFT_BUTTON:
+			switch(state)
+			{
+				case GLUT_DOWN:
+					moving = 1;
+					xprev = x;
+					yprev = y;
+					break;
+				case GLUT_UP:
+					moving = 0;
+					break;
+			}
+			break;
+		case GLUT_MIDDLE_BUTTON:
+			break;
+		case GLUT_RIGHT_BUTTON:
+			break;		
+	}
+}
+
+/* GCALab_Graphics_MouseMove(): handles mouse movement
+ */
+void GCALab_Graphics_MouseMove(int x, int y)
+{
+	if (moving)
+	{
+		theta += ((float)(x - xprev))*0.1;
+		phi += ((float)(y - yprev))*0.1;
+		xprev = x;
+		yprev = y;
 	}
 }
 

@@ -222,8 +222,13 @@ void GCALab_Graphics_Init(void);
 void GCALab_Graphics_Display(void);
 void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y);
 void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y);
+void GCALab_Graphics_MouseClick(int button,int state,int x, int y);
+void GCALab_Graphics_MouseMove(int x, int y);
 void GCALab_Graphics_Reshape(int w, int h);
 void GCALab_Graphics_Timer(int x);
+void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id);
+void GCALab_Graphics_DrawBBox(void);
+void GCALab_Graphics_DrawGrid(void);
 #endif
 /*Text and Batch Mode*/
 char **GCALab_CommandPrompt(int *numargs);
