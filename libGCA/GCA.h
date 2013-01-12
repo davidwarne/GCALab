@@ -135,7 +135,7 @@ struct GraphCellularAutomaton_struct
 /*CA creation functions*/
 
 unsigned int *GenerateTopology(unsigned int *N,unsigned char *k, mesh *m);
-CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned char rule, unsigned int ws);
+CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws);
 GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule);
 GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params);
 GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA);

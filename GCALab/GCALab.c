@@ -64,6 +64,9 @@
  *       v 0.13 (11/01/2013) - i. Happy new year!
  *                             ii. Added mouse handlers
  *                             iii. cleaned up the display function.
+ *       v 0.14 (12/01/2013) - i. Fixed but in parsing rule code, should be and unsigned int
+ *                                not an unsigned char.
+ *                             ii. added synced version of CA evolution, good for animations.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -1694,6 +1697,7 @@ void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
 			GCALab_ShutDown(0); 
 			break;
 		case 's':
+			CANextStep(WS(cur_ws)->GCAList[cur_gca]);
 			break;
 	}
 }
@@ -2136,8 +2140,9 @@ char GCALab_OP_Simulate(unsigned char ws_id,unsigned int trgt_id,int nparams, ch
 char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
 {
 	char *meshfile;
-	unsigned int NCell,genus,windowsize;
-	unsigned char r_type,r,s,k,eca,ic_type;
+	unsigned int NCell,genus,windowsize,r;
+	unsigned char r_type;
+	unsigned char s,k,eca,ic_type;
 	int  i;
 	char rc;
 	GraphCellularAutomaton *GCA;
@@ -2161,7 +2166,7 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 		else if(!strcmp(params[i],"-r"))
 		{
 			r_type = (unsigned char)atoi(params[++i]);
-			r = (unsigned char)atoi(params[++i]);
+			r = (unsigned int)atoi(params[++i]);
 		}
 		else if(!strcmp(params[i],"-s"))
 		{
@@ -2175,7 +2180,7 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 		{
 			NCell = (unsigned int)atoi(params[++i]);
 			k = (unsigned char)atoi(params[++i]);
-			r = (unsigned char)atoi(params[++i]);
+			r = (unsigned int)atoi(params[++i]);
 			eca = 1;
 		}
 		else if (!strcmp(params[i],"-c"))

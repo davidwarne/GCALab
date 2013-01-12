@@ -250,7 +250,7 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
  *     rule - the rule code
  *     ws - the window-size (i.e., the number of timesteps to store)
  */
-CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned char rule, unsigned int ws)
+CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws)
 {
 	CellularAutomatonParameters *params;
 
