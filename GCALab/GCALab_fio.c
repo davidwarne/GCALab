@@ -15,8 +15,8 @@
  */
  
 #include "GCALab_fio.h"
-
 char *GCALab_fio_format[14] = {"%f","%lf","%hhu","%hu","%u","%llu","%hhd","%hd","%d","%lld","%hhx","%hx","%x","%llx"};
+unsigned char cellCols[8][3] = {{0,0,0},{255,255,255},{255,0,0},{0,255,0},{255,0,0},{255,0,255},{255,255,0},{0,255,255}};
 
 /* GCALAB_saveCA(): Writes CA data to a file
  *
@@ -34,6 +34,7 @@ char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m)
 	FILE* fp;
 	unsigned int i,j;
 	char lutfile[255],meshfile[255],graphfile[255],stpfile[255];
+	BMPImage *image;
 	if (!(fp = fopen(filename,"w")))
 	{
 		return WRITE_FAILED;
@@ -42,7 +43,7 @@ char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m)
 	sprintf(lutfile,"%s.lut",filename);
 	sprintf(meshfile,"%s.off",filename);
 	sprintf(graphfile,"%s.top",filename);
-	sprintf(stpfile,"%s.stp",filename);
+	sprintf(stpfile,"%s.stp.bmp",filename);
 
 	fprintf(fp,"%d\n",GCA->params->N);
 	fprintf(fp,"%u\n",GCA->params->s);
@@ -89,24 +90,50 @@ char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m)
 		SaveMesh(meshfile,m,OFF_FORMAT);
 	}
 
-	if (!(fp = fopen(stpfile,"w")))
+	image = (BMPImage *)malloc(sizeof(BMPImage));
+	if (!image)
+	{
+		return WRITE_FAILED; 
+	}
+	image->height = (unsigned long int)GCA->params->WSIZE;
+	image->width = (unsigned long int)(GCA->params->N);
+	image->RGB = (unsigned char **)malloc(image->height*sizeof(unsigned char *));
+	if (!(image->RGB))
 	{
 		return WRITE_FAILED;
+	}
+	for (i=0;i<image->height;i++)
+	{
+		image->RGB[i] = (unsigned char *)malloc(image->width*sizeof(unsigned char)*3);
+		if (!(image->RGB[i]))
+		{
+			return WRITE_FAILED;
+		}
 	}
 	for (i=GCA->params->WSIZE-1;i>0;i--)
 	{
 		for (j=0;j<GCA->params->N;j++)
 		{
-			fprintf(fp,"%u ",GetCellStatePacked(GCA,j,i));
+			unsigned char *col;
+			col = cellCols[GetCellStatePacked(GCA,j,i)];
+			image->RGB[i][j*3] = col[0];
+			image->RGB[i][j*3+1] = col[1];
+			image->RGB[i][j*3+2] = col[2];
 		}
-		fprintf(fp,"\n");
 	}
 	for (j=0;j<GCA->params->N;j++)
 	{
-		fprintf(fp,"%u ",GetCellStatePacked(GCA,j,i));
+		unsigned char *col;
+		col = cellCols[GetCellStatePacked(GCA,j,i)];
+		image->RGB[i][j*3] = col[0];
+		image->RGB[i][j*3+1] = col[1];
+		image->RGB[i][j*3+2] = col[2];
 	}
-	fprintf(fp,"\n");
-	fclose(fp);
+	WriteBMP(stpfile,image);
+	for (j=0;j<image->height;j++) 
+		free(image->RGB[j]);
+	free(image->RGB);
+	free(image);
 
 	return WRITE_SUCCESS;
 };

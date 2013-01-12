@@ -67,6 +67,8 @@
  *       v 0.14 (12/01/2013) - i. Fixed but in parsing rule code, should be and unsigned int
  *                                not an unsigned char.
  *                             ii. added synced version of CA evolution, good for animations.
+ *       v 0.15 (13/01/2013) - i. improved the graphics quality
+ *                             ii. added bitmap output for time-space patterns.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -82,7 +84,7 @@
  *
  *==============================================================================
  */
-
+#define GCALAB_VERSION 0.14
 #include "GCALab.h"
 #ifdef __linux__
 /*global array of workspace addresses*/
@@ -98,8 +100,9 @@ unsigned int cur_ws;
 /* light settings*/
 GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
 GLfloat diffuseLight[] = { 3.0f, 3.0f, 3.0f, 1.0f };
-GLfloat position[] = { 2.0f, 1.0f, 2.0f, 1.0f };
-GLfloat positionMirror[] = { 2.0f, -1.0f, 2.0f, 1.0f };
+GLfloat position[] = { 2.0f, 2.0f, 2.0f, 1.0f };
+GLfloat positionMirror[] = { 2.0f, -2.0f, 2.0f, 1.0f };
+GLfloat fogCol[] = {0.5f,0.5f,0.5f,1.0f};
 GLUquadric* quad;
 float translateX,translateY,zoom;
 float theta, phi;
@@ -108,10 +111,11 @@ unsigned int cur_res;
 unsigned char moving;
 int xprev;
 int yprev;
+float cellColf[8][3] = {{0,0,0},{1,1,1},{1,0,0},{0,1,0},{1,0,0},{1,0,1},{1,1,0},{0,1,1}};
 #endif
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
-char cellsymbols[6] = {' ','O','*','-','^','='};
+char cellsymbols[8] = {' ','O','*','-','x','+','#','^'};
 /* main(): entry point of the GCALab Program
  */
 int main(int argc, char **argv)
@@ -193,14 +197,11 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 	/*init display mode*/
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	/*get the screen resolution*/
-	/*hPix = glutGet(GLUT_SCREEN_HEIGHT);
+	hPix = glutGet(GLUT_SCREEN_HEIGHT);
 	wPix = glutGet(GLUT_SCREEN_WIDTH);
-	*/
-	hPix = 1024;
-	wPix = 1024;
 	/*set up window*/
-	glutInitWindowSize(wPix,hPix);
-	glutInitWindowPosition(0,0);
+	glutInitWindowSize(hPix,hPix);
+	glutInitWindowPosition(wPix - hPix,0);
 	glutCreateWindow("GCALab");
 	GCALab_Graphics_Init();
 	glutDisplayFunc(GCALab_Graphics_Display);
@@ -213,7 +214,7 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 
 	cur_gca = 0;
 	cur_res = 0;
-	moving = 0;	
+	moving = GCALAB_GRAPHICS_INTERACTION_NONE;	
 	glutMainLoop();
 #else
 	fprintf(stderr,"Graphics Mode not enabled in this build.\n");
@@ -1296,15 +1297,15 @@ char GCALab_PrintSTP(unsigned char ws_id,unsigned int gca_id)
 {
 	int i,l,j;
 	GraphCellularAutomaton *GCA;
-	
+
 	if (gca_id < 0 || gca_id >= WS(ws_id)->numGCA)
 	{
 		return GCALAB_INVALID_OPTION;
 	}
+	
 
 	GCA = WS(ws_id)->GCAList[gca_id];
 	l = (GCA->t >= GCA->params->WSIZE) ? GCA->params->WSIZE - 1 :  GCA->t;
-
 	for (i=l;i>0;i--)
 	{
 		for (j=0;j<GCA->params->N;j++)
@@ -1402,7 +1403,7 @@ char** strvncpy(char **strv,int c, int n)
 void GCALab_Graphics_Init(void)
 {
 	/*background colour*/
-	glClearColor(0.3,0.3,0.3,1.0);
+	glClearColor(0.5,0.5,0.5,1.0);
 	/*enable depth test, blending, back face culling, lighting, and anti-aliasing*/
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
@@ -1416,8 +1417,14 @@ void GCALab_Graphics_Init(void)
 	glLightfv(GL_LIGHT0, GL_POSITION, position)   ; 
 	/*smooth shading model*/
 	glShadeModel(GL_SMOOTH);
-	glClearColor(0.0,0.0,0.0,0.0);
-	
+	/*fog effect stuff*/
+	glFogi(GL_FOG_MODE,GL_LINEAR);
+	glFogfv(GL_FOG_COLOR,fogCol);
+	glFogf(GL_FOG_DENSITY,0.55);
+	glHint(GL_FOG_HINT,GL_NICEST);
+	glFogf(GL_FOG_START,1.0);
+	glFogf(GL_FOG_END,50.0);
+	glEnable(GL_FOG);
 	quad = gluNewQuadric();
 	return;
 }
@@ -1426,7 +1433,6 @@ void GCALab_Graphics_Init(void)
  */
 void GCALab_Graphics_Display(void)
 {
-#define OFFSET 1.5
 	/*clear screen for a new render*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
@@ -1441,23 +1447,20 @@ void GCALab_Graphics_Display(void)
 	glPushMatrix();
 	glFrontFace(GL_CW);
 	glScalef(1.0,-1.0,1.0);
+	glPushMatrix();
+	glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
+	GCALab_Graphics_DrawBBox();
+	glPopMatrix();
 	if (GCALab_numWS > 0)
 	{
 		if (WS(cur_ws)->numGCA > 0)
 		{
 			glPushMatrix();
-			glTranslatef(0.0,OFFSET,0.0);
+			glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
 			GCALab_Graphics_DrawGCA(cur_ws,cur_gca);
 			glPopMatrix();
 		}
 	} 
-	else
-	{
-		glPushMatrix();
-		glTranslatef(0.0,OFFSET,0.0);
-		GCALab_Graphics_DrawBBox();
-		glPopMatrix();
-	}
 	glFrontFace(GL_CCW);
 	glPopMatrix();
     
@@ -1467,23 +1470,21 @@ void GCALab_Graphics_Display(void)
 	/* draw the "real" scene... but how do we define real?*/
 	glLightfv(GL_LIGHT0, GL_POSITION, position); 
 	
+	glPushMatrix();
+	glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
+	GCALab_Graphics_DrawBBox();
+	glPopMatrix();
 	if (GCALab_numWS > 0)
 	{
 		if (WS(cur_ws)->numGCA > 0)
 		{
 			glPushMatrix();
-			glTranslatef(0.0,OFFSET,0.0);
+			glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
 			GCALab_Graphics_DrawGCA(cur_ws,cur_gca);
 			glPopMatrix();
 		}
 	} 
-	else
-	{
-		glPushMatrix();
-		glTranslatef(0.0,OFFSET,0.0);
-		GCALab_Graphics_DrawBBox();
-		glPopMatrix();
-	}
+
 	glutSwapBuffers();
 }
 
@@ -1500,6 +1501,7 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 	gca = WS(ws_id)->GCAList[gca_id];
 	
 	/*we assume that we are dealing with a triangular mesh*/
+	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	/*TODO: expand this to support other meshes*/
 	glBegin(GL_TRIANGLES);
 
@@ -1509,7 +1511,7 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 		/*TODO: for now very 'binary' state based, fix this*/
 		if (GetCellStatePacked(gca,i,0))
 		{
-			GLfloat ambdif[4] = {0.964705882,0.792156863,0.458823529,1.0};
+			GLfloat ambdif[4] = {0.85,0.32,0.32,1.0};
 			GLfloat em[4] = {0.0,0.0,0.0,1.0};
 			GLfloat spec[4] = {0.7,0.7,0.7,0.5};
 			GLfloat shininess  = 128.0;
@@ -1520,7 +1522,7 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 		}
 		else
 		{
-			GLfloat ambdif[] = {0.62745,0.564705,0.439216,1.0};
+			GLfloat ambdif[] = {0.1,0.1,0.1,0.8};
 			GLfloat em[] = {0.0,0.0,0.0,1.0};
 			GLfloat spec[] = {0.7,0.7,0.7,0.5};
 			GLfloat shininess  = 128.0;
@@ -1536,6 +1538,7 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
 		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
 		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+		free(n);
 	}
 	glEnd();
 }
@@ -1544,36 +1547,21 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
  */
 void GCALab_Graphics_DrawBBox(void)
 {
+    glDisable(GL_LIGHTING);
 	glBegin(GL_LINES);
 	glColor4f(1,0,0,1);
-	glVertex3f(-1,-1,-1);
-	glVertex3f(-1,1,-1);
-	glVertex3f(-1,1,-1);
-	glVertex3f(1,1,-1);
-	glVertex3f(1,1,-1);
-	glVertex3f(1,-1,-1);
-	glVertex3f(1,-1,-1);
-	glVertex3f(-1,-1,-1);
+	glVertex3f(0,0,0);
+	glVertex3f(1,0,0);
+	
 	glColor4f(0,1,0,1);
-	glVertex3f(-1,-1,1);
-	glVertex3f(-1,1,1);
-	glVertex3f(-1,1,1);
-	glVertex3f(1,1,1);
-	glVertex3f(1,1,1);
-	glVertex3f(1,-1,1);
-	glVertex3f(1,-1,1);
-	glVertex3f(-1,-1,1);
+	glVertex3f(0,0,0);
+	glVertex3f(0,1,0);
 
 	glColor4f(0,0,1,1);
-	glVertex3f(-1,-1,1);
-	glVertex3f(-1,-1,-1);
-	glVertex3f(-1,1,1);
-	glVertex3f(-1,1,-1);
-	glVertex3f(1,1,1);
-	glVertex3f(1,1,-1);
-	glVertex3f(1,-1,1);
-	glVertex3f(1,-1,-1);
+	glVertex3f(0,0,0);
+	glVertex3f(0,0,1);
 	glEnd();
+    glEnable(GL_LIGHTING);
 }
 
 /* GCALab_Graphics_DrawGrid(): draws a grid to orientate the user
@@ -1587,7 +1575,7 @@ void GCALab_Graphics_DrawGrid(void)
 
 	lim = 200;
 
-	glColor4f(0.0,0.0,0.0,0.8);
+	glColor4f(0.0,0.0,0.0,0.7);
 	glBegin(GL_QUADS);
 		glVertex3f((float)(-lim/2),0.0,(float)(-lim/2));
 		glVertex3f((float)(-lim/2),0.0,(float)(lim/2));
@@ -1596,7 +1584,7 @@ void GCALab_Graphics_DrawGrid(void)
 	glEnd();
 
 	/* draw some gridlines*/
-	glColor4f(0.2,0.2,0.2,0.8);
+	glColor4f(0.0,0.0,0.0,0.9);
 	for (i=0;i<lim;i++)
 	{
 		for (j=0;j<lim;j++)
@@ -1746,25 +1734,46 @@ void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y)
  */
 void GCALab_Graphics_MouseClick(int button,int state,int x, int y)
 {
-
 	switch(button)
 	{
 		case GLUT_LEFT_BUTTON:
 			switch(state)
 			{
 				case GLUT_DOWN:
-					moving = 1;
+					moving = GCALAB_GRAPHICS_INTERACTION_ROTATE;
 					xprev = x;
 					yprev = y;
 					break;
 				case GLUT_UP:
-					moving = 0;
+					moving = GCALAB_GRAPHICS_INTERACTION_NONE;
 					break;
 			}
 			break;
 		case GLUT_MIDDLE_BUTTON:
+			switch(state)
+			{
+				case GLUT_DOWN:
+					moving = GCALAB_GRAPHICS_INTERACTION_ZOOM;
+					xprev = x;
+					yprev = y;
+					break;
+				case GLUT_UP:
+					moving = GCALAB_GRAPHICS_INTERACTION_NONE;
+					break;
+			}
 			break;
 		case GLUT_RIGHT_BUTTON:
+			switch(state)
+			{
+				case GLUT_DOWN:
+					moving = GCALAB_GRAPHICS_INTERACTION_TRANSLATE;
+					xprev = x;
+					yprev = y;
+					break;
+				case GLUT_UP:
+					moving = GCALAB_GRAPHICS_INTERACTION_NONE;
+					break;
+			}
 			break;		
 	}
 }
@@ -1773,12 +1782,28 @@ void GCALab_Graphics_MouseClick(int button,int state,int x, int y)
  */
 void GCALab_Graphics_MouseMove(int x, int y)
 {
-	if (moving)
+	switch (moving)
 	{
-		theta += ((float)(x - xprev))*0.1;
-		phi += ((float)(y - yprev))*0.1;
-		xprev = x;
-		yprev = y;
+		case GCALAB_GRAPHICS_INTERACTION_NONE:
+			break;
+		case GCALAB_GRAPHICS_INTERACTION_ROTATE:
+			theta += ((float)(x - xprev))*0.1;
+			phi += ((float)(y - yprev))*0.1;
+			phi = (phi < -25.0) ? -25.0 : ((phi > 60.0) ? 60.0 : phi);
+			xprev = x;
+			yprev = y;
+			break;
+		case GCALAB_GRAPHICS_INTERACTION_ZOOM:
+			zoom += ((float)(y - yprev))*0.05;
+			xprev = x;
+			yprev = y;
+			break;
+		case GCALAB_GRAPHICS_INTERACTION_TRANSLATE:
+			translateX -= ((float)(x - xprev))*0.05;
+			translateY += ((float)(y - yprev))*0.05;
+			xprev = x;
+			yprev = y;
+			break;
 	}
 }
 

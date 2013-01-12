@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include "GCA.h"
+#include "BitMapWriter.h"
 
 #define FLOAT32 0
 #define FLOAT64 1

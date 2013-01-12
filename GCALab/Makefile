@@ -3,9 +3,9 @@
 CC = gcc
 OPTS = -O2 -DNO_THREADS -DWITH_GRAPHICS
 #OPTS = -g
-SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c
+SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c ../libBitMap/BitMapFile.c ../libBitMap/BitMapWriter.c
 OBJS = $(SRC:.c=.o)
-INC = -I../libMesh/ -I../libGCA/ -I./
+INC = -I../libMesh/ -I../libGCA/ -I ../libBitMap -I./ 
 BIN = GCALab
 LIBS = -lm -lpthread -lg -lglut -lGLU
 #PROFILE = -g -pg

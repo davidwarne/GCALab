@@ -41,6 +41,11 @@
 
 #ifdef WITH_GRAPHICS
 #include <GL/glut.h>	
+#define GCALAB_GRAPHICS_INTERACTION_NONE 0
+#define GCALAB_GRAPHICS_INTERACTION_ROTATE 1
+#define GCALAB_GRAPHICS_INTERACTION_TRANSLATE 2
+#define GCALAB_GRAPHICS_INTERACTION_ZOOM 3
+#define GCALAB_GRAPHICS_OFFSET 2
 #endif
 
 /*custom headers*/ 
@@ -48,7 +53,6 @@
 #include "GCA.h"
 #include "GCALab_fio.h"
 
-#define GCALAB_VERSION 0.11
 
 /*this error code should be consistent with the error codes in mesh.h*/
 #define GCALAB_SUCCESS 			127
