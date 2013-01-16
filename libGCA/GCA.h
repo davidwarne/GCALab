@@ -136,7 +136,7 @@ struct GraphCellularAutomaton_struct
 
 unsigned int *GenerateTopology(unsigned int *N,unsigned char *k, mesh *m);
 CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws);
-GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule);
+GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule,unsigned int ws);
 GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params);
 GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA);
 
@@ -170,7 +170,7 @@ float* ComputeExactProbs(GraphCellularAutomaton *GCA);
 float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float* sigma,unsigned int *Qm, float *logQm,float *IEm);
 float lambda_param(GraphCellularAutomaton *GCA);
 float Z_param(GraphCellularAutomaton *GCA);
-unsigned int G_density(GraphCellularAutomaton *GCA,chunk* ics, unsigned int n);
+float G_density(GraphCellularAutomaton *GCA,chunk* ics, unsigned int n);
 
 /*TODO: move this Thread stuff into another file, too lazy for now*/
 #ifndef NO_THREADS

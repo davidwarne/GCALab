@@ -89,6 +89,7 @@
  *
  *       v 0.15 (19/11/2012) - i. minor bug fix in Create GCA for totalistic and thresh-hold
  *                                based rule codes
+ *       v 0.16 (16/01/2013) - i. added windowsize parameter for CreateECA()
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -284,7 +285,7 @@ CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_t
  * Returns:
  *     A Graph Elementary Cellular Automaton ready for simlulation
  */
-GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule)
+GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule,unsigned int ws)
 {
 	CellularAutomatonParameters *params;
 	GraphCellularAutomaton *ECA;
@@ -302,7 +303,7 @@ GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rul
 	params->s = 2; /*binary {0,1}*/
 	params->k = (unsigned char)k;
 	params->N = N;
-	params->WSIZE = DEFAULT_WINDOW_SIZE;
+	params->WSIZE = (ws == 0) ? DEFAULT_WINDOW_SIZE : ws;
 	params->rule = rule;
 	params->rule_type = CODE_RULE_TYPE;
 	params->graph = GenerateTopology(&N_tmp,&k_tmp,NULL);
@@ -2145,7 +2146,7 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	inv_logn = 1.0/log(n);
 	inv_numLookups = 1.0/numLookups;
 	/*run lead in period*/
-	CASimTSteps(GCA,w);
+	CASimTSteps(GCA,1000);
 	for (t=0;t<T;t++)
 	{
 		/*reset the histogram*/
@@ -2187,7 +2188,7 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	*sigma = 0.0;
 	for (t=0;t<T;t++)
 	{
-		*sigma += (IE[t] - *mu)*(IE[t] - *mu);
+		*sigma += (IE[t] - *mu)*(IE[t] - *mu)/();
 	}
 	*sigma /= (float)T;
 	*sigma = sqrt(*sigma);
@@ -2319,20 +2320,34 @@ float Z_param(GraphCellularAutomaton *GCA)
  * Parameters:
  *		GCA - go figure 
  */
-unsigned int G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
+float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 {
 	unsigned int G;
 	chunk i;
 	G = 0;
 	if (n != 0)
 	{
-		for (i=0;i<n;i++)
+		if (ics != NULL)
 		{
-			/*fix the initial condition*/
-			SetCAIC(GCA,ics+i*(GCA->size),EXPLICIT_IC_TYPE);
-			/*Garden-of-Eden test*/
-			G += IsGOE(GCA);
+			for (i=0;i<n;i++)
+			{
+				/*fix the initial condition*/
+				SetCAIC(GCA,ics+i*(GCA->size),EXPLICIT_IC_TYPE);
+				/*Garden-of-Eden test*/
+				G += IsGOE(GCA);
+			}
 		}
+		else
+		{
+			for (i=0;i<n;i++)
+			{
+				/*fix the initial condition*/
+				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+				/*Garden-of-Eden test*/
+				G += IsGOE(GCA);
+			}
+		}
+		return ((float)G)/((float)n);
 	}
 	else
 	{
@@ -2343,7 +2358,8 @@ unsigned int G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 			/*Garden-of-Eden test*/
 			G += IsGOE(GCA);
 		}
+		return ((float)G)/((float)ics[1]-ics[0]);
+
 	}
-	return G;
 }
 

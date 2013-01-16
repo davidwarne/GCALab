@@ -69,6 +69,11 @@
  *                             ii. added synced version of CA evolution, good for animations.
  *       v 0.15 (13/01/2013) - i. improved the graphics quality
  *                             ii. added bitmap output for time-space patterns.
+ *       v 0.16 (16/01/2013) - i. added lut coloring option in graphics mode
+ *                             ii. fixed a bug in gca create command when creating 
+ *                                 an ECA with a user specified window size.
+ *                             iii. added a all parameters option for the param
+ *                                  command.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -80,6 +85,9 @@
  * 		4. implement text mode first, then re-implement batch mode, then graphics 
  * 		5. carefully separated main engine from the mode type
  * 		6. remember to comment function pointer framework carefully.
+ * 		7. should add a cycle compute function, possibly useful comparison
+ * 		8. build in more plotting/image saving options
+ * 		9. add a create animation option
  * Known Issues:
  *
  *==============================================================================
@@ -111,7 +119,10 @@ unsigned int cur_res;
 unsigned char moving;
 int xprev;
 int yprev;
-float cellColf[8][3] = {{0,0,0},{1,1,1},{1,0,0},{0,1,0},{1,0,0},{1,0,1},{1,1,0},{0,1,1}};
+float cellColf[8][3] = {{0,0,0},{1,1,1},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1,1,0},{0,1,1}};
+float lutColf[16][3] = {{0,0,0},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1,1,0},{0,1,1},{1,1,1},
+						{1,0.5,0},{0.0,1,0.5},{0.5,0,1},{1,0.5,1},{1,1,0.5},{0.5,1,1},{0.5,0.5,0.5}};
+unsigned char lutColmode;
 #endif
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
@@ -214,6 +225,7 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 
 	cur_gca = 0;
 	cur_res = 0;
+	lutColmode = 0;
 	moving = GCALAB_GRAPHICS_INTERACTION_NONE;	
 	glutMainLoop();
 #else
@@ -1508,29 +1520,23 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 	for (i=0;i<m->fList->numFaces;i++)
 	{
 		/*change material properties based on cell state*/
-		/*TODO: for now very 'binary' state based, fix this*/
-		if (GetCellStatePacked(gca,i,0))
+		float * col;
+		if (lutColmode)
 		{
-			GLfloat ambdif[4] = {0.85,0.32,0.32,1.0};
-			GLfloat em[4] = {0.0,0.0,0.0,1.0};
-			GLfloat spec[4] = {0.7,0.7,0.7,0.5};
-			GLfloat shininess  = 128.0;
-			glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-			glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-			glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-			glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+			col = lutColf[GetNeighbourhood_config(gca,i,0)];
 		}
 		else
 		{
-			GLfloat ambdif[] = {0.1,0.1,0.1,0.8};
-			GLfloat em[] = {0.0,0.0,0.0,1.0};
-			GLfloat spec[] = {0.7,0.7,0.7,0.5};
-			GLfloat shininess  = 128.0;
-   			glMaterialfv(GL_FRONT,GL_EMISSION,em);   
-  			glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
-    		glMaterialf(GL_FRONT,GL_SHININESS,shininess);
-    		glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
+			col = cellColf[GetCellStatePacked(gca,i,0)];
 		}
+		GLfloat ambdif[4] = {col[0],col[1],col[2],1.0};
+		GLfloat em[4] = {0.0,0.0,0.0,1.0};
+		GLfloat spec[4] = {0.7,0.7,0.7,0.5};
+		GLfloat shininess  = 128.0;
+		glMaterialfv(GL_FRONT,GL_EMISSION,em);   
+		glMaterialfv(GL_FRONT,GL_SPECULAR, spec);
+		glMaterialf(GL_FRONT,GL_SHININESS,shininess);
+		glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
 		/*compute the cell normal*/
 		n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
 		/*draw the cell*/
@@ -1686,6 +1692,9 @@ void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
 			break;
 		case 's':
 			CANextStep(WS(cur_ws)->GCAList[cur_gca]);
+			break;
+		case 'l':
+			lutColmode = !lutColmode;
 			break;
 	}
 }
@@ -2217,17 +2226,12 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 	if (eca)
 	{
 		/*create an elementary CA with N cells, k-neighbourhood and wolfram code r*/
-		GCA = CreateECA(NCell,k,r);
+		GCA = CreateECA(NCell,k,r,windowsize);
 		m = NULL;
 		rc = GCALab_TestPointer((void*)GCA);
 		if (rc <= 0)
 		{
 			return rc;
-		}
-
-		if (windowsize)
-		{
-			GCA->params->WSIZE = windowsize;
 		}
 	}
 	else
@@ -2617,10 +2621,11 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 {
 	unsigned int type;
 	chunk range[2];
-	float lambdap,Zp;
-	unsigned int Gp;
+	float lambdap,Zp,Gp;
 	int i;
+	unsigned int samples;
 	GraphCellularAutomaton *GCA;
+	samples = 0;
 	for (i=0;i<nparams;i++)
 	{
 		if (!strcmp(params[i],"-p"))
@@ -2632,6 +2637,10 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 			range[0] = (chunk)atoi(params[++i]);
 			range[1] = (chunk)atoi(params[++i]);
 		}
+		else if (!strcmp(params[i],"-n"))
+		{
+			samples = (unsigned int)atoi(params[++i]);
+		}
 	}
 
 	/*Grab a reference to the CA we want to play with*/
@@ -2640,7 +2649,7 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 			
 	switch(type)
 	{
-		case GCALAB_LAMBDA:
+		case GCALAB_LAMBDA_PARAM:
 		{
 			float *result_data;
 			lambdap = lambda_param(GCA);
@@ -2653,7 +2662,7 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 			(*res)->data = (void*)result_data;
 		}	
 			break;
-		case GCALAB_Z:
+		case GCALAB_Z_PARAM:
 		{
 			float *result_data;
 			Zp = Z_param(GCA);
@@ -2666,16 +2675,46 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 			(*res)->data = (void*)result_data;
 		}
 			break;
-		case GCALAB_G:
+		case GCALAB_G_PARAM:
 		{
-			unsigned int *result_data;
-			Gp = G_density(GCA,range,0);
+			float *result_data;
+			if (samples > 0)
+			{
+				Gp = G_density(GCA,NULL,samples);
+			}
+			else
+			{
+				Gp = G_density(GCA,range,0);
+			}
 			/*store outputs*/
-			(*res)->type = UINT32;
+			(*res)->type = FLOAT32;
 			sprintf((*res)->id,"(%d):G",trgt_id);
 			(*res)->datalen = 1;
-			result_data = (unsigned int*)malloc(sizeof(unsigned int));
+			result_data = (float*)malloc(sizeof(float));
 			result_data[0] = Gp;
+			(*res)->data = (void*)result_data;
+		}
+			break;
+		case GCALAB_ALL_PARAM:
+		{
+			float *result_data;
+			lambdap = lambda_param(GCA);
+			Zp = Z_param(GCA);
+			if (samples > 0)
+			{
+				Gp = G_density(GCA,NULL,samples);
+			}
+			else
+			{
+				Gp = G_density(GCA,range,0);
+			}
+			(*res)->type = FLOAT32;
+			sprintf((*res)->id,"(%d):PA",trgt_id);
+			(*res)->datalen = 3;
+			result_data = (float*)malloc(3*sizeof(float));
+			result_data[0] = lambdap;
+			result_data[1] = Zp;
+			result_data[2] = Gp;
 			(*res)->data = (void*)result_data;
 		}
 			break;

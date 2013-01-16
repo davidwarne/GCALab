@@ -76,7 +76,7 @@
 #endif
 
 #ifndef GCALAB_MAX_WORKSPACES
-#define GCALAB_MAX_WORKSPACES 	10
+#define GCALAB_MAX_WORKSPACES 	20
 #endif
 
 #ifndef GCALAB_DEFAULT_MAX_GCA 
@@ -115,9 +115,10 @@
 #define GCALAB_INPUT_ENTROPY 	2
 #define GCALAB_ALL_ENTROPY 		3
 
-#define GCALAB_LAMBDA 	0
-#define GCALAB_Z 		1
-#define GCALAB_G		3
+#define GCALAB_LAMBDA_PARAM		0
+#define GCALAB_Z_PARAM 			1
+#define GCALAB_G_PARAM			2
+#define GCALAB_ALL_PARAM		3
 
 #define WS(a) GCALab_Global[(a)]
 
