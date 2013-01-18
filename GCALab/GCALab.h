@@ -124,6 +124,13 @@
 
 #define WS(a) GCALab_Global[(a)]
 
+#ifndef GCALAB_MAXNUM_CMDS
+#define GCALAB_MAXNUM_CMDS 14
+#endif
+
+#ifndef GCALAB_MAXNUM_OPS
+#define GCALAB_MAXNUM_OPS 9
+#endif
 
 typedef struct GCALab_CL_Options_struct GCALab_CL_Options;
 typedef struct GCALabworkspace_struct GCALab_WS;
@@ -200,6 +207,9 @@ struct GCALab_Operation_struct
 
 /*function prototypes*/
 char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts);
+void GCALab_Register_Command(char *id,char (*f)(int, char**),char * args, char * desc);
+void GCALab_Register_Operation(char *id,char (*f)(unsigned char,unsigned int,int,char**,GCALabOutput**),char* args,char * desc);
+char GCALab_Process_Command(int nargs,char ** args);
 char GCALab_NewWorkSpace(int GCALimit);
 void GCALab_LockWS(unsigned char ws_id);
 void GCALab_UnLockWS(unsigned char ws_id);
@@ -261,6 +271,7 @@ char GCALab_ValidWSId(unsigned int ws_id);
 void GCALab_InitCL_Options(GCALab_CL_Options* opts);
 GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv);
 char** strvncpy(char **strv,int c,int n);
+
 
 /*menu commands*/
 char GCALab_CMD_NewWorkSpace(int argc, char **argv);

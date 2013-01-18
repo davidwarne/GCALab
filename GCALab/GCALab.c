@@ -77,6 +77,17 @@
  *       v 0.17 (18/01/2013) - i. Extended param command to handle And average attractor
  *                                cycle length command and an average transient path
  *                                length command.
+ *       v 0.18 (19/01/2013) - i. Added a command and operation registeration functions,
+ *                                should have been done a while ago, but it really has 
+ *                                cleaned up the GCALab Init function.
+ *                             ii. removed the need to enter q-cmd to enter thread operations,
+ *                                 however left it in as a command for compatability with old
+ *                                 scripts.
+ *                             iii. made command prompt more robust, does not seg fault on invalid
+ *                                  user inputs. Meaningful error messages are returned now also.
+ *                             iv. improved user input of command that require a type, no longer 
+ *                                 need to know the type codes, but a name instead.
+ *                             v.  imporved error handling of command so crashes are less common.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -87,26 +98,29 @@
  *		3. use ptheads to implement a main loop plus compute threads - done (v 0.05)
  * 		4. implement text mode first, then re-implement batch mode, then graphics - done (0.12) 
  * 		5. carefully separated main engine from the mode type - done (0.11)
- * 		6. remember to comment function pointer framework carefully.
+ * 		6. remember to comment function pointer framework carefully. 
  * 		7. should add a cycle compute function, possibly useful comparison - done (v 0.17)
  * 		8. build in more plotting/image saving options
  * 		9. add a create animation option
  * 		10. should make command more user friendly ie add a symbol table for CA and results
- * 		    and remove the need to enter q-cmd before an operation and change input args so
- * 		    option id codes do not need to be known explicitly
+ * 		11. remove the need to enter q-cmd before an operation - done (0.18)
+ * 		12. change input args so option id codes do not need to be known explicitly - done (0.18)
+ * 		13. add register command and register operation functions - done (0.18)
  * Known Issues:
  *
  *==============================================================================
  */
-#define GCALAB_VERSION 0.14
+#define GCALAB_VERSION 0.17
+#define GCALAB_AUTHOR "David J. Warne"
+#define GCALAB_CW_YEAR 2013
 #include "GCALab.h"
 #ifdef __linux__
 /*global array of workspace addresses*/
 GCALab_WS **GCALab_Global;
 unsigned int GCALab_numWS;
-GCALab_Cmd GCALab_Cmds[14];
+GCALab_Cmd GCALab_Cmds[GCALAB_MAXNUM_CMDS];
 unsigned int GCALab_numCmds;
-GCALab_Op GCALab_Ops[9];
+GCALab_Op GCALab_Ops[GCALAB_MAXNUM_OPS];
 unsigned int GCALab_numOps;
 unsigned char GCALab_mode;
 unsigned int cur_ws;
@@ -172,39 +186,21 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 {
 	char **userinput;
 	int numargs;
-	char* cmd;
 	char rc;
 	GCALab_SplashScreen();
 	
 	while(1)
 	{
-		int i;
 		/*get user input*/
 		userinput = GCALab_CommandPrompt(&numargs);
-		/*ensure input is valid*/
-		rc = GCALab_TestPointer((void*)userinput);
+		rc = GCALab_Process_Command(numargs,userinput);
 		GCALab_HandleErr(rc);
-		
-		cmd = userinput[0];
-		for (i=0;i<GCALab_numCmds;i++)
-		{
-			if (!strcmp(cmd,GCALab_Cmds[i].id))
-			{
-				rc = (*(GCALab_Cmds[i].f))(numargs,userinput);
-				GCALab_HandleErr(rc);
-			}
-		}
-		/*clean up user args*/
-		for (i=0;i<numargs;i++)
-		{
-			free(userinput[i]);
-		}
-		free(userinput);
 	}
 	return;
 }
 
-/* GCALab_InteractiveMode(): Runs GCALab interactively
+/* GCALab_GraphicsMode(): Runs GCALab interactively with
+ *                        OpenGL Grpahics
  */
 void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 {
@@ -247,37 +243,183 @@ char GCALab_BatchMode(GCALab_CL_Options* opts)
 {
 	char **userinput;
 	int numargs;
-	char* cmd;
 	char rc;
 	GCALab_SplashScreen();
 	
 	while(1)
 	{
-		int i;
 		/*get user input*/
 		userinput = GCALab_ReadScriptCommand(opts->ScriptFile,&numargs);
 		opts->ScriptFile = NULL;
-		/*ensure input is valid*/
-		rc = GCALab_TestPointer((void*)userinput);
+		rc = GCALab_Process_Command(numargs,userinput);
 		GCALab_HandleErr(rc);
-		
-		cmd = userinput[0];
-		for (i=0;i<GCALab_numCmds;i++)
-		{
-			if (!strcmp(cmd,GCALab_Cmds[i].id))
-			{
-				rc = (*(GCALab_Cmds[i].f))(numargs,userinput);
-				GCALab_HandleErr(rc);
-			}
-		}
-
-		/*clean up user args*/
-		for (i=0;i<numargs;i++)
-		{
-			free(userinput[i]);
-		}
-		free(userinput);
 	}
+}
+
+/* GCALab_Init(): sets up GCALab with default settings, unless
+ *                overridden via start-up commands
+ */
+char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
+{
+	char *args,*desc;
+	GCALab_Global = (GCALab_WS **)malloc(GCALAB_MAX_WORKSPACES*sizeof(GCALab_WS*));
+	if(!(GCALab_Global))
+	{
+		return GCALAB_FATAL_ERROR;
+	}
+	
+	opts[0] = GCALab_ParseCommandLineArgs(argc,argv);
+	if (!(opts[0]))
+	{
+		return GCALAB_CL_PARSE_ERROR;
+	}
+	
+	GCALab_numWS = 0;
+	GCALab_mode = (opts[0])->mode;
+	
+	GCALab_numCmds = 0;
+	GCALab_numOps = 0;
+	
+	/*register commands*/
+	args = "n";
+	desc = "Creates a new workspace with n CA slots.";
+	GCALab_Register_Command("new-work",&GCALab_CMD_NewWorkSpace,args,desc);
+	args = "none";
+	desc = "Print the current workspace.";
+	GCALab_Register_Command("print-work",&GCALab_CMD_PrintWorkSpace,args,desc);
+	args = "none";
+	desc = "Print Summary of all workspaces.";
+	GCALab_Register_Command("list-work",&GCALab_CMD_ListWorkSpaces,args,desc);
+	args = "id";
+	desc = "Changes current workspace to be id.";
+	GCALab_Register_Command("ch-work",&GCALab_CMD_ChangeWorkSpace,args,desc);
+	args = "cmd";
+	desc = "Enqueues the GCA operation to the current command queue.";
+	GCALab_Register_Command("q-cmd",&GCALab_CMD_QueueCommand,args,desc);
+	args = "cmd_id";
+	desc = "Sets GCA operation to cmd_id to be ignored.";
+	GCALab_Register_Command("del-cmd",&GCALab_CMD_DeleteCommand,args,desc);
+	args = "none";
+	desc = "The current queue will start processing.";
+	GCALab_Register_Command("exec-q",&GCALab_CMD_ExecuteQueue,args,desc);
+	args = "none";
+	desc = "The current queue will pause after completion of the current operation.";
+	GCALab_Register_Command("stop-q",&GCALab_CMD_StopQueue,args,desc);
+	args = "ca_id";
+	desc = "Prints GCA with id ca_id in the current workspace.";
+	GCALab_Register_Command("print-ca",&GCALab_CMD_PrintCA,args,desc);
+	args = "ca_id";
+	desc = "Prints GCA evolution.";
+	GCALab_Register_Command("print-st",&GCALab_CMD_PrintSTP,args,desc);
+	args = "res_id";
+	desc = "Prints result data with id res_id.";
+	GCALab_Register_Command("print-res",&GCALab_CMD_PrintResults,args,desc);
+	args = "none";
+	desc = "Exit GCALab.";
+	GCALab_Register_Command("quit",&GCALab_CMD_Quit,args,desc);
+	args = "none";
+	desc = "Prints this help menu.";
+	GCALab_Register_Command("help",&GCALab_CMD_PrintHelp,args,desc);
+	args = "none";
+	desc = "Prints available compute commands.";
+	GCALab_Register_Command("list-cmds",&GCALab_CMD_PrintOperations,args,desc);
+	/*register operations*/	
+	args = "none";
+	desc = "No Operation";
+	GCALab_Register_Operation("nop",&GCALab_OP_NOP,args,desc);
+	args = "i -f filename";
+	desc = "Loads a *.gca file into the current workspace";
+	GCALab_Register_Operation("load",&GCALab_OP_Load,args,desc);
+	args = "i -f filename (-g | -r)";
+	desc = "Save a GCA or result with id to file";
+	GCALab_Register_Operation("save",&GCALab_OP_Save,args,desc);
+	args = "i -t Tfinal [-I] [-f icfile | -c ictype]";
+	desc = "simulates the id to Tfinal";
+	GCALab_Register_Operation("sim",&GCALab_OP_Simulate,args,desc);
+	args = "i (((-m meshfile | -t numcells genus) -s numstates -r ruletype rulecode) | -eca numCells numNeighbours rule) [-c ictype] [-w windowsize]";
+	desc = "Creates a new graph cellular automaton in the current workspace";
+	GCALab_Register_Operation("gca",&GCALab_OP_GCA,args,desc);
+	args = "i -n numsamples -t timesteps -e entropytype";
+	desc = "Computes entropy measures of graph cellular automaton at i";
+	GCALab_Register_Operation("entropy",&GCALab_OP_Entropy,args,desc);
+	args = "i -p paramtype [-l config0 configN | -n numSamples -t maxT]";
+	desc = "Computes complexity parameters such as Langton's lambda";
+	GCALab_Register_Operation("param",&GCALab_OP_Param,args,desc);
+	args = "i";
+	desc = "Computes pre-images of the current configuration of the graph cellular automaton at i";
+	GCALab_Register_Operation("reverse",&GCALab_OP_Reverse,args,desc);
+	args = "i (-n numsamples | -l config0 configN)";
+	desc = "Computes state frequency histogram for each cell in the graph cellular automaton at i";
+	GCALab_Register_Operation("freq",&GCALab_OP_Freq,args,desc);
+	return GCALAB_SUCCESS;
+}
+
+/* GCALab_Register_Command(): Registers command functions for the GCALab 
+ *                            command prompt.
+ */
+void GCALab_Register_Command(char *id,char (*f)(int,char**),char * args, char * desc)
+{
+	if (GCALab_numCmds < GCALAB_MAXNUM_CMDS)
+	{
+		GCALab_Cmds[GCALab_numCmds].id = id;
+		GCALab_Cmds[GCALab_numCmds].f = f;
+		GCALab_Cmds[GCALab_numCmds].args = args;
+		GCALab_Cmds[GCALab_numCmds].desc = desc;
+		GCALab_numCmds++;
+	}
+}
+
+/* GCALab_Register_Operation(): Registers a compute operation
+ */
+void GCALab_Register_Operation(char *id,char (*f)(unsigned char,unsigned int,int,char**,GCALabOutput**),char* args,char * desc)
+{
+	if (GCALab_numOps < GCALAB_MAXNUM_OPS)
+	{
+		GCALab_Ops[GCALab_numOps].id = id;
+		GCALab_Ops[GCALab_numOps].f = f;
+		GCALab_Ops[GCALab_numOps].args = args;
+		GCALab_Ops[GCALab_numOps].desc = desc;
+		GCALab_numOps++;
+	}
+}
+
+/* GCALab_Process_Command(): Interprets the user command prompt input
+ *                           as returned by GCALab_CommandPrompt()
+ */
+char GCALab_Process_Command(int nargs,char **args)
+{
+	char rc;
+	int i;
+	char *cmd;
+	/*ensure input is valid*/
+	rc = GCALab_TestPointer((void*)args);
+	GCALab_HandleErr(rc);
+		
+	cmd = args[0];
+	for (i=0;i<GCALab_numCmds;i++)
+	{
+		if (!strcmp(cmd,GCALab_Cmds[i].id))
+		{
+			rc = (*(GCALab_Cmds[i].f))(nargs,args);
+			GCALab_HandleErr(rc);
+			break;
+		}
+	}
+	/*if we don't find a command then assume a q-cmd*/
+	/*and pass it down to the queue*/
+	if (i == GCALab_numCmds)
+	{
+		rc = GCALab_CMD_QueueCommand(nargs,args);	
+	}
+
+	/*clean up user args*/
+	for (i=0;i<nargs;i++)
+	{
+		free(args[i]);
+	}
+	free(args);
+
+	return rc;
 }
 
 /* GCALab_TestPointer(): returns an error if the pointer is null
@@ -312,155 +454,29 @@ void GCALab_HandleErr(char rc)
 		{
 			case GCALAB_MEM_ERROR:
 				fprintf(stderr,"OUT OF MEMORY!!!\n");
-				exit(1);
+				GCALab_HandleErr(GCALAB_FATAL_ERROR);
 				break;
 			case GCALAB_FATAL_ERROR:
 				fprintf(stderr,"A fatal error occurred. Aborting.\n");
 				exit(1);
 				break;
 			case GCALAB_INVALID_OPTION:
+				fprintf(stderr,"Invalid command option.\n");
 				break;
 			case GCALAB_UNKNOWN_OPTION:
+				fprintf(stderr,"Unknown command.\n");
 				break;
 			case GCALAB_CL_PARSE_ERROR:
 				break;
 			case GCALAB_INVALID_WS_ERROR:
+				fprintf(stderr,"Invalid Workspace Id.\n");
 				break;
 			case GCALAB_THREAD_ERROR:
-				exit(1);
+				fprintf(stderr,"Something funky happened with a thread.\n");
+				GCALab_HandleErr(GCALAB_FATAL_ERROR);
 				break;
 		}
 	}
-}
-
-/* GCALab_Init(): sets up GCALab with default settings, unless
- *                overridden via start-up commands
- */
-char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
-{
-	GCALab_Global = (GCALab_WS **)malloc(GCALAB_MAX_WORKSPACES*sizeof(GCALab_WS*));
-	if(!(GCALab_Global))
-	{
-		return GCALAB_FATAL_ERROR;
-	}
-
-	/*register commands*/
-	GCALab_numCmds = 14;
-	GCALab_Cmds[0].id = "new-work";
-	GCALab_Cmds[0].f = &GCALab_CMD_NewWorkSpace;
-	GCALab_Cmds[0].args = "n";
-	GCALab_Cmds[0].desc = "Creates a new workspace with n CA slots.";
-
-	GCALab_Cmds[1].id = "print-work";
-	GCALab_Cmds[1].f = &GCALab_CMD_PrintWorkSpace;
-	GCALab_Cmds[1].args = "none";
-	GCALab_Cmds[1].desc = "Print the current workspace.";
-
-	GCALab_Cmds[2].id = "list-all-work";
-	GCALab_Cmds[2].f = &GCALab_CMD_ListWorkSpaces;
-	GCALab_Cmds[2].args = "none";
-	GCALab_Cmds[2].desc = "Print Summary of all workspaces.";
-
-	GCALab_Cmds[3].id = "ch-work";
-	GCALab_Cmds[3].f = &GCALab_CMD_ChangeWorkSpace;
-	GCALab_Cmds[3].args = "id";
-	GCALab_Cmds[3].desc = "Changes current workspace to be id.";
-	
-	GCALab_Cmds[4].id = "q-cmd";
-	GCALab_Cmds[4].f = &GCALab_CMD_QueueCommand;
-	GCALab_Cmds[4].args = "cmd";
-	GCALab_Cmds[4].desc = "Enqueues the GCA operation to the current command queue.";
-	
-	GCALab_Cmds[5].id = "del-cmd";
-	GCALab_Cmds[5].f = &GCALab_CMD_DeleteCommand;
-	GCALab_Cmds[5].args = "cmd_id";
-	GCALab_Cmds[5].desc = "Sets GCA operation to cmd_id to be ignored.";
-	
-	GCALab_Cmds[6].id = "exec-q";
-	GCALab_Cmds[6].f = &GCALab_CMD_ExecuteQueue;
-	GCALab_Cmds[6].args = "none";
-	GCALab_Cmds[6].desc = "The current queue will start processing.";
-	
-	GCALab_Cmds[7].id = "stop-q";
-	GCALab_Cmds[7].f = &GCALab_CMD_StopQueue;
-	GCALab_Cmds[7].args = "none";
-	GCALab_Cmds[7].desc = "The current queue will pause after completion of the current operation.";
-	
-	GCALab_Cmds[8].id = "print-ca";
-	GCALab_Cmds[8].f = &GCALab_CMD_PrintCA;
-	GCALab_Cmds[8].args = "ca_id";
-	GCALab_Cmds[8].desc = "Prints GCA with id ca_id in the current workspace.";
-	
-	GCALab_Cmds[9].id = "print-st";
-	GCALab_Cmds[9].f = &GCALab_CMD_PrintSTP;
-	GCALab_Cmds[9].args = "ca_id";
-	GCALab_Cmds[9].desc = "Prints GCA evolution.";
-	
-	GCALab_Cmds[10].id = "print-result";
-	GCALab_Cmds[10].f = &GCALab_CMD_PrintResults;
-	GCALab_Cmds[10].args = "res_id";
-	GCALab_Cmds[10].desc = "Prints result data with id res_id.";
-	
-	GCALab_Cmds[11].id = "quit";
-	GCALab_Cmds[11].f = &GCALab_CMD_Quit;
-	GCALab_Cmds[11].args = "none";
-	GCALab_Cmds[11].desc = "Exit GCALab.";
- 	
-	GCALab_Cmds[12].id = "help";
-	GCALab_Cmds[12].f = &GCALab_CMD_PrintHelp;
-	GCALab_Cmds[12].args = "none";
-	GCALab_Cmds[12].desc = "Prints this help menu.";
-	
-	GCALab_Cmds[13].id = "list-cmds";
-	GCALab_Cmds[13].f = &GCALab_CMD_PrintOperations;
-	GCALab_Cmds[13].args = "none";
-	GCALab_Cmds[13].desc = "Prints available compute commands.";
-	/*register operations*/	
-	GCALab_Ops[GCALAB_NOP].id = "nop";
-	GCALab_Ops[GCALAB_NOP].f = &GCALab_OP_NOP;
-	GCALab_Ops[GCALAB_NOP].args = "none";
-	GCALab_Ops[GCALAB_NOP].desc = "No Operation";
-	GCALab_Ops[GCALAB_LOAD].id = "load";
-	GCALab_Ops[GCALAB_LOAD].f = &GCALab_OP_Load;
-	GCALab_Ops[GCALAB_LOAD].args = "i -f filename";
-	GCALab_Ops[GCALAB_LOAD].desc = "Loads a *.gca file into the current workspace";
-	GCALab_Ops[GCALAB_SAVE].id = "save";
-	GCALab_Ops[GCALAB_SAVE].f = &GCALab_OP_Save;
-	GCALab_Ops[GCALAB_SAVE].args = "i -f filename (-g | -r)";
-	GCALab_Ops[GCALAB_SAVE].desc = "Save a GCA or result with id to file";
-	GCALab_Ops[GCALAB_SIMULATE].id = "simulate";
-	GCALab_Ops[GCALAB_SIMULATE].f = &GCALab_OP_Simulate;
-	GCALab_Ops[GCALAB_SIMULATE].args = "i -t Tfinal [-I] [-f icfile | -c ictype]";
-	GCALab_Ops[GCALAB_SIMULATE].desc = "simulates the id to Tfinal";
-	GCALab_Ops[GCALAB_GCA].id = "gca";
-	GCALab_Ops[GCALAB_GCA].f = &GCALab_OP_GCA;
-	GCALab_Ops[GCALAB_GCA].args = "i (((-m meshfile | -t numcells genus) -s numstates -r ruletype rulecode) | -eca numCells numNeighbours rule) [-c ictype] [-w windowsize]";
-	GCALab_Ops[GCALAB_GCA].desc = "Creates a new graph cellular automaton in the current workspace";
-	GCALab_Ops[GCALAB_ENTROPY].id = "entropy";
-	GCALab_Ops[GCALAB_ENTROPY].f = &GCALab_OP_Entropy;
-	GCALab_Ops[GCALAB_ENTROPY].args = "i -n numsamples -t timesteps -e entropytype";
-	GCALab_Ops[GCALAB_ENTROPY].desc = "Computes entropy measures of graph cellular automaton at i";
-	GCALab_Ops[GCALAB_PARAM].id = "param";
-	GCALab_Ops[GCALAB_PARAM].f = &GCALab_OP_Param;
-	GCALab_Ops[GCALAB_PARAM].args = "i -p paramtype [-l config0 configN | -n numSamples -t maxT]";
-	GCALab_Ops[GCALAB_PARAM].desc = "Computes complexity parameters such as Langton's lambda";
-	GCALab_Ops[GCALAB_REVERSE].id = "reverse";
-	GCALab_Ops[GCALAB_REVERSE].f = &GCALab_OP_Reverse;
-	GCALab_Ops[GCALAB_REVERSE].args = "i";
-	GCALab_Ops[GCALAB_REVERSE].desc = "Computes pre-images of the current configuration of the graph cellular automaton at i";
-	GCALab_Ops[GCALAB_STATE_FREQUENCIES].id = "freq";
-	GCALab_Ops[GCALAB_STATE_FREQUENCIES].f = &GCALab_OP_Freq;
-	GCALab_Ops[GCALAB_STATE_FREQUENCIES].args = "i (-n numsamples | -l config0 configN)";
-	GCALab_Ops[GCALAB_STATE_FREQUENCIES].desc = "Computes state frequency histogram for each cell in the graph cellular automaton at i";
-	GCALab_numOps = 9;
-	opts[0] = GCALab_ParseCommandLineArgs(argc,argv);
-	if (!(opts[0]))
-	{
-		return GCALAB_CL_PARSE_ERROR;
-	}
-	GCALab_numWS = 0;
-	GCALab_mode = (opts[0])->mode;
-	return GCALAB_SUCCESS;
 }
 
 /* GCALab_GetCommandCode(): converts the command string into a
@@ -490,6 +506,7 @@ void * GCALab_Worker(void *params)
 	error = 0;
 	while(!exit)
 	{
+		/*Worker thread finite state machine*/
 		switch(GCALab_GetState(ws_id))
 		{
 			case GCALAB_WS_STATE_ERROR:
@@ -603,11 +620,11 @@ void GCALab_PrintAbout(void)
 	fprintf(stdout," flexible, analysis tool forthe exploration of cellular automata\n"); 
 	fprintf(stdout," defined on graphs.\n");
 	fprintf(stdout,"\n Version:\t%0.2f\n",GCALAB_VERSION);
-	fprintf(stdout," Author:\tDavid J. Warne\n");
+	fprintf(stdout," Author:\t%s\n",GCALAB_AUTHOR);
 	fprintf(stdout," School:\tSchool of Electrical Engineering and Computer Science,\n");
 	fprintf(stdout," \t\tThe Queensland University of Technology, Brisbane, Australia\n");
 	fprintf(stdout," Contact:\tdavid.warne@qut.edu.au\n");
-	fprintf(stdout," Website:\tcoming soon!\n");
+	fprintf(stdout," url:\thttps://github.com/davidwarne/GCALab.git\n");
 	return;
 }
 
@@ -615,7 +632,7 @@ void GCALab_PrintAbout(void)
  */
 void GCALab_PrintLicense(void)
 {
-	fprintf(stdout,"\n GCALab v %0.2f  Copyright (C) 2012  David J. Warne\n",GCALAB_VERSION);
+	fprintf(stdout,"\n GCALab v %0.2f  Copyright (C) %d  %s\n",GCALAB_VERSION,GCALAB_CW_YEAR,GCALAB_AUTHOR);
 	fprintf(stdout," This program comes with ABSOLUTELY NO WARRANTY.\n");
 	fprintf(stdout," This is free software, and you are welcome to redistribute it\n");
 	fprintf(stdout," under certain conditions.\n");
@@ -1432,7 +1449,7 @@ void GCALab_Graphics_Init(void)
 	glEnable(GL_LIGHT0); 	
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_POSITION, position)   ; 
+	glLightfv(GL_LIGHT0, GL_POSITION, position); 
 	/*smooth shading model*/
 	glShadeModel(GL_SMOOTH);
 	/*fog effect stuff*/
@@ -1623,29 +1640,10 @@ void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
 		{
 			char **userinput;
 			int numargs;
-			char* cmd;
-			int i;
 			/*get user input*/
 			userinput = GCALab_CommandPrompt(&numargs);
-			/*ensure input is valid*/
-			rc = GCALab_TestPointer((void*)userinput);
+			rc = GCALab_Process_Command(numargs,userinput);
 			GCALab_HandleErr(rc);
-			
-			cmd = userinput[0];
-			for (i=0;i<GCALab_numCmds;i++)
-			{
-				if (!strcmp(cmd,GCALab_Cmds[i].id))
-				{
-					rc = (*(GCALab_Cmds[i].f))(numargs,userinput);
-					GCALab_HandleErr(rc);
-				}
-			}
-			/*clean up user args*/
-			for (i=0;i<numargs;i++)
-			{
-				free(userinput[i]);
-			}
-			free(userinput);
 		}
 			break;
 		case '>':
@@ -1881,6 +1879,10 @@ char GCALab_CMD_NewWorkSpace(int argc, char **argv)
  */
 char GCALab_CMD_PrintWorkSpace(int argc, char **argv)
 {
+	char rc;
+	rc = GCALab_ValidWSId(cur_ws);
+	/*only continue if the id was valid*/
+	if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 	return GCALab_PrintWorkSpace(cur_ws);
 }
 
@@ -1948,19 +1950,31 @@ char GCALab_CMD_QueueCommand(int argc, char **argv)
 		unsigned int target;
 		int numparams;
 		char ** params;
-		int i;
+		int i,s;
 		/*first get the id map for the command*/
-		cmd_code = GCALab_GetCommandCode(argv[1]);
+		s = 1;
+		cmd_code = GCALab_GetCommandCode(argv[s]);
+		if (cmd_code == GCALAB_NOP)
+		{
+			s = 0;
+			/*try the first arg (incase q-cmd is not included)*/
+			cmd_code = GCALab_GetCommandCode(argv[s]);
+			if (cmd_code == GCALAB_NOP)
+			{
+				return GCALAB_UNKNOWN_OPTION;
+			}
+		}
 		/*the target id is next*/
-		target = (unsigned int)atoi(argv[2]);
+		target = (unsigned int)atoi(argv[s+1]);
 			
 		/*everything else is specific to the command*/
-		numparams = argc - 3;
+		numparams = argc - (s+2);
 		/*make a copy*/
-		params = strvncpy(argv+3,numparams,GCALAB_MAX_STRLEN);
+		params = strvncpy(argv+(s+2),numparams,GCALAB_MAX_STRLEN);
 		rc = GCALab_TestPointer((void*)params);
 		if (rc == GCALAB_MEM_ERROR) return rc;
-			
+		rc = GCALab_ValidWSId(cur_ws);
+		if (rc < 0) return rc;
 		/*push it to the queue*/
 		return GCALab_QueueCommand(cur_ws,cmd_code,target,params,numparams);	
 	}
@@ -1971,6 +1985,7 @@ char GCALab_CMD_QueueCommand(int argc, char **argv)
  */
 char GCALab_CMD_DeleteCommand(int argc, char **argv)
 {
+	char rc;
 	if (argc < 2)
 	{
 		return GCALAB_INVALID_OPTION;
@@ -1979,6 +1994,9 @@ char GCALab_CMD_DeleteCommand(int argc, char **argv)
 	{
 		unsigned int ind;
 		ind = (unsigned int)atoi(argv[1]);
+		rc = GCALab_ValidWSId(cur_ws);
+		/*only continue if the id was valid*/
+		if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 		return GCALab_CancelCommand(cur_ws,ind);
 	}
 }
@@ -1988,6 +2006,10 @@ char GCALab_CMD_DeleteCommand(int argc, char **argv)
  */
 char GCALab_CMD_ExecuteQueue(int argc, char **argv)
 {
+	char rc;
+	rc = GCALab_ValidWSId(cur_ws);
+	/*only continue if the id was valid*/
+	if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 	return GCALab_ProcessCommandQueue(cur_ws);
 }
 
@@ -1996,6 +2018,10 @@ char GCALab_CMD_ExecuteQueue(int argc, char **argv)
  */
 char GCALab_CMD_StopQueue(int argc, char **argv)
 {
+	char rc;
+	rc = GCALab_ValidWSId(cur_ws);
+	/*only continue if the id was valid*/
+	if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 	return GCALab_PauseCommandQueue(cur_ws);
 }
 
@@ -2003,6 +2029,7 @@ char GCALab_CMD_StopQueue(int argc, char **argv)
  */
 char GCALab_CMD_PrintCA(int argc, char **argv)
 {
+	char rc;
 	if (argc < 2)
 	{
 		return GCALAB_INVALID_OPTION;
@@ -2011,6 +2038,9 @@ char GCALab_CMD_PrintCA(int argc, char **argv)
 	{
 		unsigned int id;
 		id = (unsigned int)atoi(argv[1]);
+		rc = GCALab_ValidWSId(cur_ws);
+		/*only continue if the id was valid*/
+		if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 		return GCALab_PrintCA(cur_ws,id);
 	}
 }
@@ -2019,6 +2049,7 @@ char GCALab_CMD_PrintCA(int argc, char **argv)
  */
 char GCALab_CMD_PrintSTP(int argc, char ** argv)
 {
+	char rc;
 	if (argc < 2)
 	{
 		return GCALAB_INVALID_OPTION;
@@ -2027,6 +2058,9 @@ char GCALab_CMD_PrintSTP(int argc, char ** argv)
 	{
 		unsigned int id;
 		id = (unsigned int)atoi(argv[1]);
+		rc = GCALab_ValidWSId(cur_ws);
+		/*only continue if the id was valid*/
+		if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 		return GCALab_PrintSTP(cur_ws,id);
 	}
 }
@@ -2035,6 +2069,7 @@ char GCALab_CMD_PrintSTP(int argc, char ** argv)
  */
 char GCALab_CMD_PrintResults(int argc, char **argv)
 {
+	char rc;
 	if (argc < 2)
 	{
 		return GCALAB_INVALID_OPTION;
@@ -2043,6 +2078,9 @@ char GCALab_CMD_PrintResults(int argc, char **argv)
 	{
 		unsigned int id;
 		id = (unsigned int)atoi(argv[1]);
+		rc = GCALab_ValidWSId(cur_ws);
+		/*only continue if the id was valid*/
+		if (rc == GCALAB_INVALID_WS_ERROR) return rc;
 		return GCALab_PrintResults(cur_ws,id);
 	}
 }
@@ -2160,7 +2198,27 @@ char GCALab_OP_Simulate(unsigned char ws_id,unsigned int trgt_id,int nparams, ch
 		}
 		else if (!strcmp(params[i],"-c"))
 		{
-			ic_type = (unsigned char)atoi(params[++i]);
+			char * typestr = params[++i];
+			if (!strcmp(typestr,"point"))
+			{
+				ic_type = POINT_IC_TYPE;
+			}
+			else if (!strcmp(typestr,"random"))
+			{
+				ic_type = NOISE_IC_TYPE;
+			}
+			else if (!strcmp(typestr,"stripe"))
+			{
+				ic_type = STRIPE_IC_TYPE;
+			}
+			else if (!strcmp(typestr,"checker"))
+			{
+				ic_type = CHECKER_IC_TYPE;
+			}
+			else
+			{
+				return GCALAB_INVALID_OPTION;
+			}
 		}
 	}
 	
@@ -2205,7 +2263,23 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 		}
 		else if(!strcmp(params[i],"-r"))
 		{
-			r_type = (unsigned char)atoi(params[++i]);
+			char * typestr = params[++i];
+			if (!strcmp(typestr,"code"))
+			{
+				r_type = CODE_RULE_TYPE;
+			}
+			else if (!strcmp(typestr,"thresh"))
+			{
+				r_type = THRESH_RULE_TYPE;
+			}
+			else if (!strcmp(typestr,"totalistic"))
+			{
+				r_type = COUNT_RULE_TYPE;
+			}
+			else
+			{
+				return GCALAB_INVALID_OPTION;
+			}
 			r = (unsigned int)atoi(params[++i]);
 		}
 		else if(!strcmp(params[i],"-s"))
@@ -2225,7 +2299,27 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 		}
 		else if (!strcmp(params[i],"-c"))
 		{
-			ic_type = (unsigned char)atoi(params[++i]);
+			char * typestr = params[++i];
+			if (!strcmp(typestr,"point"))
+			{
+				ic_type = POINT_IC_TYPE;
+			}
+			else if (!strcmp(typestr,"random"))
+			{
+				ic_type = NOISE_IC_TYPE;
+			}
+			else if (!strcmp(typestr,"stripe"))
+			{
+				ic_type = STRIPE_IC_TYPE;
+			}
+			else if (!strcmp(typestr,"checker"))
+			{
+				ic_type = CHECKER_IC_TYPE;
+			}
+			else
+			{
+				return GCALAB_INVALID_OPTION;
+			}
 		}
 	}
 
@@ -2311,7 +2405,27 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 		}
 		else if(!strcmp(params[i],"-e"))
 		{
-			type = (unsigned int)atoi(params[++i]);
+			char * typestr = params[++i];
+			if (!strcmp(typestr,"Shannon"))
+			{
+				type = GCALAB_SHANNON_ENTROPY;
+			}
+			else if (!strcmp(typestr,"Word"))
+			{
+				type = GCALAB_WORD_ENTROPY;
+			}
+			else if (!strcmp(typestr,"Input"))
+			{
+				type = GCALAB_INPUT_ENTROPY;
+			}
+			else if (!strcmp(typestr,"All"))
+			{
+				type = GCALAB_ALL_ENTROPY;
+			}
+			else
+			{
+				return GCALAB_INVALID_OPTION;
+			}
 		}
 	}
 
@@ -2637,7 +2751,35 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 	{
 		if (!strcmp(params[i],"-p"))
 		{
-			type = (unsigned int )atoi(params[++i]);
+			char *typestr = params[++i];
+			if (!strcmp(typestr,"lambda"))
+			{
+				type = GCALAB_LAMBDA_PARAM;
+			}
+			else if (!strcmp(typestr,"Z"))
+			{
+				type = GCALAB_Z_PARAM;
+			}
+			else if (!strcmp(typestr,"G-density"))
+			{
+				type = GCALAB_G_PARAM;
+			}
+			else if (!strcmp(typestr,"Att-length"))
+			{
+				type = GCALAB_C_PARAM;
+			}
+			else if (!strcmp(typestr,"Trans-length"))
+			{
+				type = GCALAB_T_PARAM;
+			}
+			else if (!strcmp(typestr,"All"))
+			{
+				type = GCALAB_ALL_PARAM;
+			}
+			else
+			{
+				return GCALAB_INVALID_OPTION;
+			}
 		}
 		else if(!strcmp(params[i],"-l"))
 		{
