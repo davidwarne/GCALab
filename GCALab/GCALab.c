@@ -23,7 +23,7 @@
  * Queensland University of Technology
  * 
  * Date Created: 18/04/2012
- * Last Modified: 16/10/2012
+ * Last Modified: 18/01/2013
  *
  * Version History:
  *       v 0.01 (18/04/2012) - i. Initial Version...  was bored at work and 
@@ -74,6 +74,9 @@
  *                                 an ECA with a user specified window size.
  *                             iii. added a all parameters option for the param
  *                                  command.
+ *       v 0.17 (18/01/2013) - i. Extended param command to handle And average attractor
+ *                                cycle length command and an average transient path
+ *                                length command.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -82,12 +85,15 @@
  *		1. test commandline parsing - done (v 0.02)
  *		2. implement batch mode first - cancelled (v 0.04)
  *		3. use ptheads to implement a main loop plus compute threads - done (v 0.05)
- * 		4. implement text mode first, then re-implement batch mode, then graphics 
- * 		5. carefully separated main engine from the mode type
+ * 		4. implement text mode first, then re-implement batch mode, then graphics - done (0.12) 
+ * 		5. carefully separated main engine from the mode type - done (0.11)
  * 		6. remember to comment function pointer framework carefully.
- * 		7. should add a cycle compute function, possibly useful comparison
+ * 		7. should add a cycle compute function, possibly useful comparison - done (v 0.17)
  * 		8. build in more plotting/image saving options
  * 		9. add a create animation option
+ * 		10. should make command more user friendly ie add a symbol table for CA and results
+ * 		    and remove the need to enter q-cmd before an operation and change input args so
+ * 		    option id codes do not need to be known explicitly
  * Known Issues:
  *
  *==============================================================================
@@ -436,7 +442,7 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	GCALab_Ops[GCALAB_ENTROPY].desc = "Computes entropy measures of graph cellular automaton at i";
 	GCALab_Ops[GCALAB_PARAM].id = "param";
 	GCALab_Ops[GCALAB_PARAM].f = &GCALab_OP_Param;
-	GCALab_Ops[GCALAB_PARAM].args = "i -p paramtype [-l config0 configN]";
+	GCALab_Ops[GCALAB_PARAM].args = "i -p paramtype [-l config0 configN | -n numSamples -t maxT]";
 	GCALab_Ops[GCALAB_PARAM].desc = "Computes complexity parameters such as Langton's lambda";
 	GCALab_Ops[GCALAB_REVERSE].id = "reverse";
 	GCALab_Ops[GCALAB_REVERSE].f = &GCALab_OP_Reverse;
@@ -2621,11 +2627,12 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 {
 	unsigned int type;
 	chunk range[2];
-	float lambdap,Zp,Gp;
+	float lambdap,Zp,Gp,Cp,Tp;
 	int i;
-	unsigned int samples;
+	unsigned int samples,maxT;
 	GraphCellularAutomaton *GCA;
 	samples = 0;
+	maxT = 1200;
 	for (i=0;i<nparams;i++)
 	{
 		if (!strcmp(params[i],"-p"))
@@ -2641,6 +2648,10 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 		{
 			samples = (unsigned int)atoi(params[++i]);
 		}
+		else if (!strcmp(params[i],"-t"))
+		{
+			maxT = (unsigned int)atoi(params[++i]);
+		}
 	}
 
 	/*Grab a reference to the CA we want to play with*/
@@ -2652,6 +2663,7 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 		case GCALAB_LAMBDA_PARAM:
 		{
 			float *result_data;
+			/*compute Langton's lambda parameter*/
 			lambdap = lambda_param(GCA);
 			/*store outputs*/
 			(*res)->type = FLOAT32;
@@ -2665,6 +2677,7 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 		case GCALAB_Z_PARAM:
 		{
 			float *result_data;
+			/*compute Wuensche's Z parameter*/
 			Zp = Z_param(GCA);
 			/*store outputs*/
 			(*res)->type = FLOAT32;
@@ -2678,6 +2691,7 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 		case GCALAB_G_PARAM:
 		{
 			float *result_data;
+			/*compute the density of Garden-of-Eden configurations*/
 			if (samples > 0)
 			{
 				Gp = G_density(GCA,NULL,samples);
@@ -2695,6 +2709,48 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 			(*res)->data = (void*)result_data;
 		}
 			break;
+		case GCALAB_C_PARAM:
+		{
+			float *result_data;
+			/*compute the average attractor cycle length*/
+			if (samples > 0)
+			{
+				Cp = AttLength(GCA,NULL,samples,maxT);
+			}
+			else
+			{
+				Cp = AttLength(GCA,range,0,maxT);
+			}
+			/*store outputs*/
+			(*res)->type = FLOAT32;
+			sprintf((*res)->id,"(%d):C",trgt_id);
+			(*res)->datalen = 1;
+			result_data = (float*)malloc(sizeof(float));
+			result_data[0] = Cp;
+			(*res)->data = (void*)result_data;
+		}
+			break;
+		case GCALAB_T_PARAM:
+		{
+			float *result_data;
+			/*compute the average transient path length*/
+			if (samples > 0 )
+			{
+				Tp = TransLength(GCA,NULL,samples,maxT);
+			}
+			else
+			{
+				Tp = TransLength(GCA,range,0,maxT);
+			}
+			/*store outputs*/
+			(*res)->type = FLOAT32;
+			sprintf((*res)->id,"(%d):T",trgt_id);
+			(*res)->datalen = 1;
+			result_data = (float*)malloc(sizeof(float));
+			result_data[0] = Tp;
+			(*res)->data = (void*)result_data;
+		}
+			break;
 		case GCALAB_ALL_PARAM:
 		{
 			float *result_data;
@@ -2703,18 +2759,24 @@ char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt_id,int nparams, char 
 			if (samples > 0)
 			{
 				Gp = G_density(GCA,NULL,samples);
+				Cp = AttLength(GCA,NULL,samples,maxT);
+				Tp = TransLength(GCA,NULL,samples,maxT);
 			}
 			else
 			{
 				Gp = G_density(GCA,range,0);
+				Cp = AttLength(GCA,range,0,maxT);
+				Tp = TransLength(GCA,range,0,maxT);
 			}
 			(*res)->type = FLOAT32;
 			sprintf((*res)->id,"(%d):PA",trgt_id);
-			(*res)->datalen = 3;
-			result_data = (float*)malloc(3*sizeof(float));
+			(*res)->datalen = 5;
+			result_data = (float*)malloc(((*res)->datalen)*sizeof(float));
 			result_data[0] = lambdap;
 			result_data[1] = Zp;
 			result_data[2] = Gp;
+			result_data[3] = Cp;
+			result_data[4] = Tp;
 			(*res)->data = (void*)result_data;
 		}
 			break;

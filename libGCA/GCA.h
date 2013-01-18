@@ -23,7 +23,7 @@
  * Queensland University of Technology
  * 
  * Date Created: 26/03/2012
- * Last Modified: 14/05/2012
+ * Last Modified: 18/01/2013
  *
  * Descritpion: Definition of Graph Cellular Automata Libarary
  *
@@ -171,6 +171,8 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 float lambda_param(GraphCellularAutomaton *GCA);
 float Z_param(GraphCellularAutomaton *GCA);
 float G_density(GraphCellularAutomaton *GCA,chunk* ics, unsigned int n);
+float AttLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned t);
+float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned t);
 
 /*TODO: move this Thread stuff into another file, too lazy for now*/
 #ifndef NO_THREADS

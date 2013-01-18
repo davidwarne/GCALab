@@ -23,7 +23,7 @@
  * Queensland University of Technology
  * 
  * Date Created: 26/03/2012
- * Last Modified: 02/09/2012
+ * Last Modified: 18/01/2013
  *
  * Version History:
  *       v 0.01 (26/03/2012) - i. Initial Version... feel like some hackin'
@@ -90,6 +90,7 @@
  *       v 0.15 (19/11/2012) - i. minor bug fix in Create GCA for totalistic and thresh-hold
  *                                based rule codes
  *       v 0.16 (16/01/2013) - i. added windowsize parameter for CreateECA()
+ *       v 0.17 (18/01/2013) - i. Added AttLength() and TransLength() functions
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -829,14 +830,14 @@ unsigned int CANextStep(GraphCellularAutomaton *GCA)
 chunk* CASimToAttCyc(GraphCellularAutomaton *GCA,unsigned int t)
 {
 	chunk *cycle;
-	unsigned int i;
+	unsigned int i,curt;
 	cycle = (chunk*)malloc((GCA->size)*sizeof(chunk));
 	if (!cycle)
 	{
 		return NULL;
 	}
 
-	while (!IsAttCyc(GCA)) 
+	while (!IsAttCyc(GCA) && GCA->t < t) 
 	{
 		CANextStep(GCA);
 	}
@@ -853,20 +854,27 @@ chunk* CASimToAttCyc(GraphCellularAutomaton *GCA,unsigned int t)
  * Paramaters:
  *     GCA - yes, I'll just assume you know what this is...
  * Returns:
- *     1 if an attractor cycle has begun, 0 otherwise 
+ *     returns the length of the cycle if an attractor cycle has begun, 0 otherwise 
  */
 unsigned char IsAttCyc(GraphCellularAutomaton *GCA)
 {
-	unsigned int WSIZE,nbytes,t;
+	unsigned int WSIZE,nbytes,t,tn;
 	WSIZE = GCA->params->WSIZE;
 	nbytes = (GCA->size)*sizeof(chunk);
-	
-	for (t=GCA->t;t>0;t--)
+	if (GCA->t < WSIZE)
+	{
+		tn = GCA->t;
+	}
+	else
+	{
+		tn = WSIZE - 1;
+	}
+	for (t=tn;t>0;t--)
 	{
 		/*if we have seen this configuation before, then we have entered an attractor cycle */
 		if (!memcmp((void*)(GCA->config),(void*)(GCA->st_pattern[t]),nbytes)){
 			/*woah!? dejavu... was it the same cat?*/
-			return 1;
+			return t;
 		}
 	}
 	return 0;
@@ -1822,7 +1830,8 @@ unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk
 		for (p=0;p<n;p++)
 		{
 			/*fix the initial condition*/
-			SetCAIC(GCA,preImages+p*(GCA->size),0);
+			SetCAIC(GCA,preImages+p*(GCA->size),EXPLICIT_IC_TYPE);
+			ResetCA(GCA);
 			/*Run until the time equals the window size*/
 			GCA->t = 0;
 			t = 0;
@@ -1855,7 +1864,7 @@ unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk
 		{
 			/*fix the initial condition*/
 			SetCAIC(GCA,&p,0);
-			GCA->t = 0;
+			ResetCA(GCA);
 			/*only run the simulation if p is a GOE*/
 			if (IsGOE(GCA))
 			{
@@ -2188,7 +2197,7 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	*sigma = 0.0;
 	for (t=0;t<T;t++)
 	{
-		*sigma += (IE[t] - *mu)*(IE[t] - *mu)/();
+		*sigma += (IE[t] - *mu)*(IE[t] - *mu);
 	}
 	*sigma /= (float)T;
 	*sigma = sqrt(*sigma);
@@ -2314,11 +2323,17 @@ float Z_param(GraphCellularAutomaton *GCA)
 	return (Z_left > Z_right) ? Z_left : Z_right;
 }
 
-/* G_density(): Counts the number of Garden-of-Eden Configurations. That is, those
+/* G_density(): Computes the density of Garden-of-Eden Configurations. That is, those
  *              configurations which have no pre-image, and can only exist as initial
  *              conditions.
  * Parameters:
  *		GCA - go figure 
+ *		ics - a set of configureations to test, or a range of configurations to test
+ *		      if n == 0
+ *		n - if ics == NULL then this is the number of random samples to use, else
+ *		    it is is the number of configurations in ics
+ * Returns:
+ * 	   the density of Garden of eden configurations
  */
 float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 {
@@ -2333,6 +2348,7 @@ float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 			{
 				/*fix the initial condition*/
 				SetCAIC(GCA,ics+i*(GCA->size),EXPLICIT_IC_TYPE);
+				ResetCA(GCA);
 				/*Garden-of-Eden test*/
 				G += IsGOE(GCA);
 			}
@@ -2343,6 +2359,7 @@ float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 			{
 				/*fix the initial condition*/
 				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+				ResetCA(GCA);
 				/*Garden-of-Eden test*/
 				G += IsGOE(GCA);
 			}
@@ -2355,6 +2372,7 @@ float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 		{
 			/*fix the initial condition*/
 			SetCAIC(GCA,&i,EXPLICIT_IC_TYPE);
+			ResetCA(GCA);
 			/*Garden-of-Eden test*/
 			G += IsGOE(GCA);
 		}
@@ -2363,3 +2381,161 @@ float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 	}
 }
 
+/* AttLength(): returns the average length of attractor cycles
+ *
+ * Parameters:
+ *		GCA - go figure 
+ *		ics - a set of configureations to test, or a range of configurations
+ *		      if n == 0
+ *		n - if ics == NULL then this is the number of random samples to use, else
+ *		    it is is the number of configurations in ics
+ *		t - max timestep to simulate before search for an attrator is halted
+ * Returns: 
+ * 		the average attractor cycle length
+ */
+float AttLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned int t)
+{
+	unsigned int i,numcycles,totaloflengths,length;
+	numcycles = 0;
+	totaloflengths = 0;
+	if ( n != 0)
+	{
+		if (ics != NULL)
+		{
+			for (i=0;i<n;i++)
+			{
+				/*fix the initial condition*/
+				SetCAIC(GCA,ics+i*(GCA->size),EXPLICIT_IC_TYPE);
+				ResetCA(GCA);
+				/*simulate CA until an Attractor cycle is reached*/
+				while(!(length = IsAttCyc(GCA)) && GCA->t < t) 
+				{
+					CANextStep(GCA);
+				}
+				totaloflengths += length;
+				numcycles += (unsigned int)(length != 0);
+			}
+		}
+		else
+		{
+			for (i=0;i<n;i++)
+			{
+				/*fix the initial condition*/
+				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+				ResetCA(GCA);
+				/*simulate CA until an Attractor cycle is reached*/
+				while(!(length = IsAttCyc(GCA)) && GCA->t < t) 
+				{
+					CANextStep(GCA);
+				}
+				totaloflengths += length;
+				numcycles += (unsigned int)(length != 0);
+			}
+		}
+	}
+	else
+	{
+		for (i=ics[0];i<ics[1];i++)
+		{
+			/*fix the initial condition*/
+			SetCAIC(GCA,&i,EXPLICIT_IC_TYPE);
+			ResetCA(GCA);
+			/*simulate CA until an Attractor cycle is reached*/
+			while(!(length = IsAttCyc(GCA)) && GCA->t < t) 
+			{
+				CANextStep(GCA);
+			}
+			totaloflengths += length;
+			numcycles += (unsigned int)(length != 0);
+		}
+	}
+
+	return (numcycles > 0) ? ((float)totaloflengths)/((float)numcycles): 0.0;
+}
+
+/* TransLength(): returns the average transient path length
+ *
+ * Parameters:
+ *		GCA - go figure 
+ *		ics - a set of configureations to test, or a range of configurations
+ *		      if n == 0
+ *		n - if ics == NULL then this is the number of random samples to use, else
+ *		    it is is the number of configurations in ics
+ *		t - max timestep to simulate before search for an attractor is halted
+ * Returns: 
+ * 		the average transient path length
+ */
+float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned int t)
+{
+	unsigned int i,numtrans,totaloflengths,length;
+	numtrans = 0;
+	totaloflengths = 0;
+	if ( n != 0)
+	{
+		if (ics != NULL)
+		{
+			for (i=0;i<n;i++)
+			{
+				/*fix the initial condition*/
+				SetCAIC(GCA,ics+i*(GCA->size),EXPLICIT_IC_TYPE);
+				ResetCA(GCA);
+				/*simulate CA until an Attractor cycle is reached*/
+				while(!(length = IsAttCyc(GCA)) && GCA->t < t) 
+				{
+					CANextStep(GCA);
+				}
+				/*test that we did not start within an attractor cycle*/
+				if (GCA->t >= length)
+				{
+					/*we need to subtract the cycle length from the timesteps*/
+					totaloflengths += (GCA->t + 1 - length);
+					numtrans++;
+				}
+			}
+		}
+		else
+		{
+			for (i=0;i<n;i++)
+			{
+				/*fix the initial condition*/
+				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+				ResetCA(GCA);
+				/*simulate CA until an Attractor cycle is reached*/
+				while(!(length = IsAttCyc(GCA)) && GCA->t < t) 
+				{
+					CANextStep(GCA);
+				}
+				/*test that we did not start within an attractor cycle*/
+				if (GCA->t >= length)
+				{
+					/*we need to subtract the cycle length from the timesteps*/
+					totaloflengths += (GCA->t + 1 - length);
+					numtrans++;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (i=ics[0];i<ics[1];i++)
+		{
+			/*fix the initial condition*/
+			SetCAIC(GCA,&i,EXPLICIT_IC_TYPE);
+			ResetCA(GCA);
+			/*simulate CA until an Attractor cycle is reached*/
+			while(!(length = IsAttCyc(GCA)) && GCA->t < t) 
+			{
+				CANextStep(GCA);
+			}
+			/*test that we did not start within an attractor cycle*/
+			if (GCA->t >= length)
+			{
+				/*we need to subtract the cycle length from the timesteps*/
+				totaloflengths += (GCA->t + 1 - length);
+				numtrans++;
+			}
+		}
+	}
+
+	return (numtrans > 0) ? ((float)totaloflengths)/((float)numtrans) : 0.0;
+}

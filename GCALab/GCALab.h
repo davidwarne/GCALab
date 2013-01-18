@@ -23,7 +23,7 @@
  * Queensland University of Technology
  * 
  * Date Created: 18/04/2012
- * Last Modified: 16/10/2012
+ * Last Modified: 18/01/2013
  *
  */
 
@@ -118,7 +118,9 @@
 #define GCALAB_LAMBDA_PARAM		0
 #define GCALAB_Z_PARAM 			1
 #define GCALAB_G_PARAM			2
-#define GCALAB_ALL_PARAM		3
+#define GCALAB_C_PARAM			3
+#define GCALAB_T_PARAM			4
+#define GCALAB_ALL_PARAM		5
 
 #define WS(a) GCALab_Global[(a)]
 
