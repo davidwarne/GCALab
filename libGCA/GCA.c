@@ -1253,7 +1253,6 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 	{
 		sum += flags[i];
 	}
-	
 	exit = 0;
 	while (!exit)
 	{
@@ -1346,17 +1345,16 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 						else
 						{
 							memcpy(tmp_flags,flags,(GCA->params->N)*(GCA->LUT_size)*sizeof(unsigned char));
-							exit = 1;
 						}
 					}
 
-					if (invalid || exit)
+					if (invalid )
 					{
 						break;
 					}
 				}
 
-				if(invalid || exit)
+				if(invalid )
 				{
 					break;
 				}
@@ -1365,7 +1363,6 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 			exit = !invalid;
 		}
 	}
-	
 	free(theta_i);
 	free(theta_j);
 	free(tmp_flags);
