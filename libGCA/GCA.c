@@ -139,24 +139,25 @@
  * Returns:
  *     an array of unsigned int of length m->vList->numVerts)*k or N*k
  */
-unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
+unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,unsigned char nh_type, mesh *m)
 {
 	unsigned int *graph;
 	unsigned int i,j,ii,jj,r,*e;
 	unsigned int N_tmp,k_tmp;
+	unsigned int num_nb;
 	int *f1,*f2;
 	unsigned char tf;
 	if (m == NULL)
 	{
 		N_tmp = (N == NULL) ? DEFAULT_NUM_CELLS : *N;
-		k_tmp = (k == NULL) ? DEFAULT_NEIGHBOURHOOD : *k;
+		k_tmp = (k == NULL) ? DEFAULT_NEIGHBOURHOOD_SIZE : *k;
 		
 		graph = (unsigned int *)malloc(N_tmp*(k_tmp-1)*sizeof(unsigned int));
 		if (!graph)
 		{
 			return NULL;
 		}
-		memset((void*)graph,0,N_tmp*(k_tmp-1)*sizeof(unsigned int));
+		memset((void*)graph,0xFF,N_tmp*(k_tmp-1)*sizeof(unsigned int));
 		
 		/*neighbourhood radius */
 		r = (k_tmp-1)/2;
@@ -176,66 +177,107 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
 	}
 	else
 	{
-		N_tmp = m->fList->numFaces;
-		k_tmp = m->fList->maxVerts+1;
-		graph = (unsigned int *)malloc(N_tmp*(k_tmp-1)*sizeof(unsigned int));
-		if (!graph)
+		switch (nh_type)
 		{
-			return NULL;
-		}
-		memset((void*)graph,0xFF,N_tmp*(k_tmp-1)*sizeof(unsigned int));
-		
-		/*neighbours are the adjacent faces*/
-		for (i=0;i<N_tmp;i++)
-		{
-			f1 = GetFace_ptr(m->fList,i);
-			for (j=0;j<k_tmp-2;j++)
-			{
-				for (ii=0;ii<N_tmp;ii++)
+			/*only cells thats share an edge are neighbours*/
+			case VON_NEUMANN_NEIGHBOURHOOD_TYPE:
+				N_tmp = m->fList->numFaces;
+				k_tmp = m->fList->maxVerts+1;
+				graph = (unsigned int *)malloc(N_tmp*(k_tmp-1)*sizeof(unsigned int));
+				if (!graph)
 				{
-					f2 = GetFace_ptr(m->fList,ii);
-					tf = 0;
-					for (jj=0;jj<k_tmp-2;jj++)
+					return NULL;
+				}
+				memset((void*)graph,0xFF,N_tmp*(k_tmp-1)*sizeof(unsigned int));
+		
+				/*neighbours are the adjacent faces*/
+				for (i=0;i<N_tmp;i++)
+				{
+					f1 = GetFace_ptr(m->fList,i);
+					for (j=0;j<k_tmp-2;j++)
 					{
-						if (((f1[j] == f2[jj]) && (f1[j+1] == f2[jj+1])) 
-							|| ((f1[j] == f2[jj+1]) && (f1[j+1] == f2[jj])))
+						for (ii=0;ii<N_tmp;ii++)
+						{
+							f2 = GetFace_ptr(m->fList,ii);
+							tf = 0;
+							for (jj=0;jj<k_tmp-2;jj++)
+							{
+								if (((f1[j] == f2[jj]) && (f1[j+1] == f2[jj+1])) 
+									|| ((f1[j] == f2[jj+1]) && (f1[j+1] == f2[jj])))
+								{
+									tf |= 1;
+								}
+							}
+							if (((f1[j] == f2[k_tmp-2]) && (f1[j+1] == f2[0])) 
+								|| ((f1[j] == f2[0]) && (f1[j+1] == f2[k_tmp-2])))
+							{
+								tf |= 1;
+							}
+
+							if (tf && (ii != i))
+								break;
+						}	
+						graph[i*(k_tmp-1) + j] = ii;
+					}
+			
+					for (ii=0;ii<N_tmp;ii++)
+					{
+						f2 = GetFace_ptr(m->fList,ii);
+						tf = 0;
+						for (jj=0;jj<k_tmp-2;jj++)
+						{
+							if (((f1[k_tmp-2] == f2[jj]) && (f1[0] == f2[jj+1])) 
+								|| ((f1[k_tmp-2] == f2[jj+1]) && (f1[0] == f2[jj])))
+							{
+								tf |= 1;
+							}
+						}
+						if (((f1[k_tmp-2] == f2[k_tmp-2]) && (f1[0] == f2[0])) 
+							|| ((f1[k_tmp-2] == f2[0]) && (f1[0] == f2[k_tmp-2])))
 						{
 							tf |= 1;
 						}
-					}
-					if (((f1[j] == f2[k_tmp-2]) && (f1[j+1] == f2[0])) 
-						|| ((f1[j] == f2[0]) && (f1[j+1] == f2[k_tmp-2])))
-					{
-						tf |= 1;
-					}
+						if (tf && (ii != i))
+							break;
+					}	
+					graph[i*(k_tmp-1) + k_tmp-2] = ii;
+				}
+				break;
+			/*cells that share vertices are neighbours*/
+			case MOORE_NEIGHBOURHOOD_TYPE:
+				N_tmp = m->fList->numFaces;
+				k_tmp = m->fList->maxVerts*4+1;
+				graph = (unsigned int *)malloc(N_tmp*(k_tmp-1)*sizeof(unsigned int));
+				if (!graph)
+				{
+					return NULL;
+				}
+				memset((void*)graph,0xFF,N_tmp*(k_tmp-1)*sizeof(unsigned int));
 
-					if (tf && (ii != i))
-						break;
-				}	
-				graph[i*(k_tmp-1) + j] = ii;
-			}
-			
-			for (ii=0;ii<N_tmp;ii++)
-			{
-				f2 = GetFace_ptr(m->fList,ii);
-				tf = 0;
-				for (jj=0;jj<k_tmp-2;jj++)
+				for (i=0;i<N_tmp;i++)
 				{
-					if (((f1[k_tmp-2] == f2[jj]) && (f1[0] == f2[jj+1])) 
-						|| ((f1[k_tmp-2] == f2[jj+1]) && (f1[0] == f2[jj])))
+					f1 = GetFace_ptr(m->fList,i);
+					num_nb = 0;
+					for (j=0;j<(m->fList->maxVerts);j++)
 					{
-						tf |= 1;
+						for (ii=0;ii<N_tmp;ii++)
+						{
+							f2 = GetFace_ptr(m->fList,ii);
+							tf = 0;
+							for (jj=0;jj<(m->fList->maxVerts);jj++)
+							{
+								tf |= (f1[j] == f2[jj]);
+							}
+
+							if (tf && (ii != i))
+							{
+								graph[i*(k_tmp-1) + num_nb] = ii;
+								num_nb++;
+							}
+						}
 					}
 				}
-				if (((f1[k_tmp-2] == f2[k_tmp-2]) && (f1[0] == f2[0])) 
-					|| ((f1[k_tmp-2] == f2[0]) && (f1[0] == f2[k_tmp-2])))
-				{
-					tf |= 1;
-				}
-				if (tf && (ii != i))
-					break;
-			}	
-			graph[i*(k_tmp-1) + k_tmp-2] = ii;
+				break;
 		}
 	}
 	
@@ -252,7 +294,7 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,mesh *m)
  *     rule - the rule code
  *     ws - the window-size (i.e., the number of timesteps to store)
  */
-CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws)
+CellularAutomatonParameters *CreateCAParams(unsigned char nh_type,mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws)
 {
 	CellularAutomatonParameters *params;
 
@@ -262,7 +304,7 @@ CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_t
 		return NULL;
 	}
 
-	params->graph = GenerateTopology(&(params->N),&(params->k),m);
+	params->graph = GenerateTopology(&(params->N),&(params->k),nh_type,m);
 	if (!(params->graph))
 	{
 		return NULL;
@@ -307,7 +349,7 @@ GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rul
 	params->WSIZE = (ws == 0) ? DEFAULT_WINDOW_SIZE : ws;
 	params->rule = rule;
 	params->rule_type = CODE_RULE_TYPE;
-	params->graph = GenerateTopology(&N_tmp,&k_tmp,NULL);
+	params->graph = GenerateTopology(&N_tmp,&k_tmp,DEFAULT_NEIGHBOURHOOD_TYPE,NULL);
 	
 	ECA = CreateGCA(params);
 	
@@ -468,6 +510,44 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 				GCA->ruleLUT[i] = params->rule >> i*(GCA->log2s);		
 				GCA->ruleLUT[i] &= ((0x1 << (GCA->log2s)) - 1); 
 			}
+			break;
+		case LIFE_RULE_TYPE: /*Based on Carter Bay's paper*/
+		{
+			unsigned int E_l,E_h,F_l,F_h;
+			unsigned int pop;
+			unsigned int C;
+			GCA->LUT_size = pow(params->s,params->k);
+			GCA->ruleLUT = (state*)malloc((GCA->LUT_size)*sizeof(state));
+
+			if (!(GCA->LUT_size))
+			{
+				return NULL;
+			}
+
+			/*for a life rule we assume oddnly binary CA*/
+			if (GCA->params->s != 2)
+			{
+				return NULL;
+			}
+
+			F_h = params->rule & 0xFF;
+			F_l = (params->rule >> 8)  & 0xFF;
+			E_h = (params->rule >> 16) & 0xFF;
+			E_l = (params->rule >> 24) & 0xFF;
+
+			/*life rule has for parts E_l E_h F_l F_h*/
+			for (i=0;i<GCA->LUT_size;i++)
+			{
+				C = (i >> ((GCA->params->k-1)/2)) & 0x1;
+				pop = 0;
+				for (j=0;j<GCA->LUT_size;j++)
+				{
+					pop += (i >> j) & 0x1;
+				}
+				pop -= C;
+				GCA->ruleLUT[i] = (((C==1) && ((pop >= E_l) && (pop <= E_h))) || ((C==0) && ((pop >= F_l) && (pop <= F_h))));
+			}
+		}
 			break;
 	}
 	
@@ -727,8 +807,17 @@ unsigned int* GetNeighbourhood(GraphCellularAutomaton * GCA,unsigned int i)
 unsigned int GetNeighbourhood_config_external(GraphCellularAutomaton * GCA,chunk* config,unsigned int i)
 {
 	unsigned int *U_i;
-	unsigned int nhood,j;
+	unsigned int nhood,j,k_local;
 	U_i  = GCA->params->graph + i*(GCA->params->k-1);
+	/*test if this cell has less neighbours*/
+	for (j=0;j<(GCA->params->k-1);j++)
+	{
+		if (U_i[j] == 0xFFFFFFFF)
+		{
+			break;
+		}
+	}
+	k_local = GCA->params->k-1;
 	nhood = 0;
 	nhood |= GetCellStatePacked_external(GCA,config,i) << GCA->log2s*((GCA->params->k-1)/2);
 		
@@ -737,7 +826,7 @@ unsigned int GetNeighbourhood_config_external(GraphCellularAutomaton * GCA,chunk
 		nhood |= GetCellStatePacked_external(GCA,config,U_i[j]) << GCA->log2s*j;
 		
 	}
-	for (j=(GCA->params->k-1)/2;j<(GCA->params->k-1);j++)
+	for (j=(GCA->params->k-1)/2;j<k_local;j++)
 	{
 		nhood |= GetCellStatePacked_external(GCA,config,U_i[j]) << GCA->log2s*(j+1);
 	}
@@ -750,8 +839,17 @@ unsigned int GetNeighbourhood_config_external(GraphCellularAutomaton * GCA,chunk
 unsigned int GetNeighbourhood_config(GraphCellularAutomaton * GCA,unsigned int i,unsigned int t)
 {
 	unsigned int * U_i;
-	unsigned int nhood,j;
+	unsigned int nhood,j,k_local;
 	U_i  = GCA->params->graph + i*(GCA->params->k-1);
+	/*test if this cell has less neighbours*/
+	for (j=0;j<(GCA->params->k-1);j++)
+	{
+		if (U_i[j] == 0xFFFFFFFF)
+		{
+			break;
+		}
+	}
+	k_local = GCA->params->k-1;
 	nhood = 0;
 	nhood |= GetCellStatePacked(GCA,i,t) << GCA->log2s*((GCA->params->k-1)/2);
 		
@@ -760,7 +858,7 @@ unsigned int GetNeighbourhood_config(GraphCellularAutomaton * GCA,unsigned int i
 		nhood |= GetCellStatePacked(GCA,U_i[j],t) << GCA->log2s*j;
 		
 	}
-	for (j=(GCA->params->k-1)/2;j<(GCA->params->k-1);j++)
+	for (j=(GCA->params->k-1)/2;j<k_local;j++)
 	{
 		nhood |= GetCellStatePacked(GCA,U_i[j],t) << GCA->log2s*(j+1);
 	}

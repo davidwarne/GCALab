@@ -45,6 +45,7 @@
 #define THRESH_RULE_TYPE 0
 #define COUNT_RULE_TYPE 1
 #define CODE_RULE_TYPE 2 
+#define LIFE_RULE_TYPE 3
 
 #ifndef DEFAULT_RULE_TYPE
 	#define DEFAULT_RULE_TYPE CODE_RULE_TYPE
@@ -59,8 +60,15 @@
 
 #define S_MAX 256
 
-#define DEFAULT_NEIGHBOURHOOD 3
+#define DEFAULT_NEIGHBOURHOOD_SIZE 3
 #define DEFAULT_NUM_CELLS 32
+
+#define VON_NEUMANN_NEIGHBOURHOOD_TYPE 0
+#define MOORE_NEIGHBOURHOOD_TYPE 1
+
+#ifndef DEFAULT_NEIGHBOURHOOD_TYPE
+	#define DEFAULT_NEIGHBOURHOOD_TYPE VON_NEUMANN_NEIGHBOURHOOD_TYPE
+#endif
 
 #define POINT_IC_TYPE 0
 #define NOISE_IC_TYPE 1
@@ -134,8 +142,8 @@ struct GraphCellularAutomaton_struct
 
 /*CA creation functions*/
 
-unsigned int *GenerateTopology(unsigned int *N,unsigned char *k, mesh *m);
-CellularAutomatonParameters *CreateCAParams(mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws);
+unsigned int *GenerateTopology(unsigned int *N,unsigned char *k, unsigned char nh_type, mesh *m);
+CellularAutomatonParameters *CreateCAParams(unsigned char nh_type,mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws);
 GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule,unsigned int ws);
 GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params);
 GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA);

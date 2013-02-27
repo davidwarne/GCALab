@@ -110,7 +110,7 @@
  *
  *==============================================================================
  */
-#define GCALAB_VERSION 0.17
+#define GCALAB_VERSION 0.18
 #define GCALAB_AUTHOR "David J. Warne"
 #define GCALAB_CW_YEAR 2013
 #include "GCALab.h"
@@ -2239,7 +2239,7 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 {
 	char *meshfile;
 	unsigned int NCell,genus,windowsize,r;
-	unsigned char r_type;
+	unsigned char r_type,nh_type;
 	unsigned char s,k,eca,ic_type;
 	int  i;
 	char rc;
@@ -2250,6 +2250,7 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 	windowsize = 0;
 	meshfile = NULL;
 	eca = 0;
+	nh_type = DEFAULT_NEIGHBOURHOOD_TYPE;
 	for (i=0;i<nparams;i++)
 	{
 		if(!strcmp(params[i],"-m"))
@@ -2275,6 +2276,10 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 			else if (!strcmp(typestr,"totalistic"))
 			{
 				r_type = COUNT_RULE_TYPE;
+			}
+			else if (!strcmp(typestr,"life"))
+			{
+				r_type = LIFE_RULE_TYPE;
 			}
 			else
 			{
@@ -2321,6 +2326,18 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 				return GCALAB_INVALID_OPTION;
 			}
 		}
+		else if (!(strcmp(params[i],"-nh")))
+		{
+			char * typestr = params[++i];
+			if (!strcmp(typestr,"neumann"))
+			{
+				nh_type = VON_NEUMANN_NEIGHBOURHOOD_TYPE;
+			}
+			else if (!strcmp(typestr,"moore"))
+			{
+				nh_type = MOORE_NEIGHBOURHOOD_TYPE;
+			}
+		}
 	}
 
 	if (eca)
@@ -2351,7 +2368,7 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 		{
 			return rc;
 		}
-		CAparams = CreateCAParams(m,s,r_type,r,windowsize);
+		CAparams = CreateCAParams(nh_type,m,s,r_type,r,windowsize);
 		rc = GCALab_TestPointer((void*)CAparams);
 		if (rc <= 0)
 		{

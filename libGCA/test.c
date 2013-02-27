@@ -50,7 +50,7 @@ void testECA(int argc, char **argv)
 	k = (unsigned int)atoi(argv[2]);
 	rule = (unsigned int)atoi(argv[3]);
 	
-	ECA = CreateECA(N,k,rule);
+	ECA = CreateECA(N,k,rule,1200);
 	
 	printf("%u %u %u %hhu %hhu %hhu\n",ECA->params->N,ECA->params->WSIZE,ECA->params->rule,ECA->params->s,ECA->params->rule_type,ECA->params->k);
 	for (i=0;i<N;i++)
@@ -99,7 +99,7 @@ void testRevAlgorithm(int argc,char **argv)
 	k = (unsigned int)atoi(argv[2]);
 	rule = (unsigned int)atoi(argv[3]);
 	
-	ECA = CreateECA(N,k,rule);
+	ECA = CreateECA(N,k,rule,1200);
 	
 	printf("%u %u %u %hhu %hhu %hhu\n",ECA->params->N,ECA->params->WSIZE,ECA->params->rule,ECA->params->s,ECA->params->rule_type,ECA->params->k);
 	ECA->config[0] = (chunk)atoi(argv[4]);
@@ -151,6 +151,73 @@ void testRevAlgorithm(int argc,char **argv)
 	return;
 }
 
+void testGoE(int argc,char** argv)
+{
+	unsigned int N,k,r,i,j;
+	unsigned char g;
+	unsigned int size,samples1,samples2;
+	GraphCellularAutomaton *ECA;
+	N = (unsigned int) atoi(argv[1]);
+	k = (unsigned int) atoi(argv[2]);
+	unsigned int tfp = 0;
+	unsigned int tfn = 0;
+	unsigned int tp = 0;
+	unsigned int tn = 0;
+	samples1 = (unsigned int)atoi(argv[3]);
+	samples2 = (unsigned int)atoi(argv[4]);
+	size = (unsigned int)atoi(argv[5]);
+	mesh* m;
+	for (r=0;r<samples1;r++)
+	{
+		// for every config, test GoE
+		//ECA = CreateECA(N,k,r,12);
+		m = CreateMeshTopology(N,0);
+		ECA = CreateGCA(CreateCAParams(m,2,CODE_RULE_TYPE,22,12));
+		for (i=0;i<samples2;i++)
+		{	
+			chunk ic = (chunk) i;
+			SetCAIC(ECA,&ic,EXPLICIT_IC_TYPE);
+			g = IsGOE(ECA);
+			if (g)
+			{
+				unsigned char fp = 0;
+				for (j=0;j<size;j++)
+				{
+					chunk jc = (chunk) j;
+					SetCAIC(ECA,&jc,EXPLICIT_IC_TYPE);
+					CANextStep(ECA);
+					if(ic == ECA->config[0])
+					{
+						fp = 1;
+						break;
+					}
+				}
+				tfp += fp;
+				tp += !fp;
+			}
+			else
+			{
+				unsigned char fn = 1;
+				for (j=0;j<size;j++)
+				{
+					chunk jc = (chunk) j;
+					SetCAIC(ECA,&jc,EXPLICIT_IC_TYPE);
+					CANextStep(ECA);
+					if(ic == ECA->config[0])
+					{
+						fn = 0;
+						break;
+					}
+				}
+				tfn += fn;
+				tn += !fn;
+			}
+			printf("%u fp:%u(%u) fn:%u(%u) %u\n",i,tfp,tp,tfn,tn,ECA->params->N);
+		}
+		// validate
+	}
+}
+
 void testSE(int argc,char **argv)
 {
 	unsigned int i,j,N,k,rule;
@@ -160,7 +227,7 @@ void testSE(int argc,char **argv)
 	k = (unsigned int)atoi(argv[2]);
 	rule = (unsigned int)atoi(argv[3]);
 	
-	ECA = CreateECA(N,k,rule);
+	ECA = CreateECA(N,k,rule,1200);
 	
 	SetCAIC(ECA,NULL,NOISE_IC_TYPE);
 	
@@ -343,7 +410,7 @@ void testCompress(int argc, char** argv)
 	flags = (unsigned char**)malloc(256*sizeof(unsigned char *));
 	
 	for (i=0;i<256;i++){
-		ECAs[i] = CreateECA(N,k,i);
+		ECAs[i] = CreateECA(N,k,i,1200);
 	}
 	ic = (chunk *)malloc(ECAs[0]->size*sizeof(chunk));
 	for (i=0;i<ECAs[0]->size;i++)
@@ -707,7 +774,7 @@ int testAttrCycles(int argc, char ** argv)
 	unsigned char* bin[8] = {"000","100","010","110","001","101","011","111"};
 	unsigned int j,k;
 	unsigned char* flags;
-	ECA = CreateECA(30,3,30);
+	ECA = CreateECA(30,3,30,1200);
 	printf("%d %d\n",ECA->params->N,ECA->LUT_size);
 	for (i=0;i<16;i++)
 	{
@@ -737,13 +804,13 @@ int testAttrCycles(int argc, char ** argv)
 int benchmarkRevAlg(int argc,char **argv)
 {
 	GraphCellularAutomaton *ECA;
-	unsigned int i,j;
+	unsigned int i,j,k;
 	unsigned int r;
 	clock_t tic,toc;
 	unsigned char g;
 	clock_t time_g,time_ng;
 	int numg,numng;
-	for (i=4;i<10001;i*=2)
+	for (i=4;i<10001;i*=4)
 	{
 		time_g = 0;
 		time_ng = 0;
@@ -751,7 +818,11 @@ int benchmarkRevAlg(int argc,char **argv)
 		numng = 0;
 		for (r=0;r<256;r++)
 		{
-			ECA = CreateECA(i,3,r);
+			for (k=0;k<2;k++){
+			//ECA = CreateECA(i,3,r,1200);
+			mesh *m;
+			m = CreateMeshTopology(i,0);
+			ECA = CreateGCA(CreateCAParams(m,2,CODE_RULE_TYPE,r,12));
 			SetCAIC(ECA,NULL,NOISE_IC_TYPE);
 			tic = clock();
 			g = IsGOE(ECA);
@@ -775,8 +846,9 @@ int benchmarkRevAlg(int argc,char **argv)
 			free(ECA->params->graph);
 			free(ECA->params);
 			free(ECA);
+			}
 		}
-		printf("%d,%d,%d,%d,%u,%d\n",time_g,time_ng,numg,numng,i,CLOCKS_PER_SEC);
+		printf("%u,%u,%d,%d,%u,%d\n",time_g,time_ng,numg,numng,i,CLOCKS_PER_SEC);
 	}
 }
 
@@ -788,5 +860,6 @@ int main(int argc, char** argv)
 	/*testCompress(argc,argv);*/
 	/*testSE(argc,argv);*/
 	/*testAttrCycles(argc,argv);*/
-	benchmarkRevAlg(argc,argv);
+//	benchmarkRevAlg(argc,argv);
+	testGoE(argc,argv);
 }
