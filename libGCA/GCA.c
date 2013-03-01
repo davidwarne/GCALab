@@ -530,17 +530,16 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 				return NULL;
 			}
 
-			F_h = params->rule & 0xFF;
-			F_l = (params->rule >> 8)  & 0xFF;
-			E_h = (params->rule >> 16) & 0xFF;
-			E_l = (params->rule >> 24) & 0xFF;
-
+			F_h = params->rule & 0xF;
+			F_l = (params->rule >> 4)  & 0xF;
+			E_h = (params->rule >> 8) & 0xF;
+			E_l = (params->rule >> 12) & 0xF;
 			/*life rule has for parts E_l E_h F_l F_h*/
 			for (i=0;i<GCA->LUT_size;i++)
 			{
 				C = (i >> ((GCA->params->k-1)/2)) & 0x1;
 				pop = 0;
-				for (j=0;j<GCA->LUT_size;j++)
+				for (j=0;j<GCA->params->k;j++)
 				{
 					pop += (i >> j) & 0x1;
 				}

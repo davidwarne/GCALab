@@ -128,7 +128,7 @@ struct CellularAutomatonParameters_struct
 struct GraphCellularAutomaton_struct
 {
 	unsigned char log2s; /*number of bits per symbol*/
-	unsigned char LUT_size;
+	unsigned int LUT_size;
 	unsigned int size; /*number of chunks used to store the configuration*/
 	unsigned int t; /*timestep*/
 	state *ruleLUT; /*rule look-up table*/
