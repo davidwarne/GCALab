@@ -88,6 +88,8 @@
  *                             iv. improved user input of command that require a type, no longer 
  *                                 need to know the type codes, but a name instead.
  *                             v.  imporved error handling of command so crashes are less common.
+ *       v 0.19 (01/03/2012) - i. Included and tested neighbourhood type and life rule switch in
+ *                                the gca create command.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -106,11 +108,15 @@
  * 		11. remove the need to enter q-cmd before an operation - done (0.18)
  * 		12. change input args so option id codes do not need to be known explicitly - done (0.18)
  * 		13. add register command and register operation functions - done (0.18)
+ * 		14. Add cell picking so a test configuration is easy to test. Also an effective method
+ * 		    of loading an initial configuration file would also be good.
+ * 		15. LUT colour mode need more colours (possibly a continuous colourmap) since the
+ * 		    moore neighbourhood LUTs are quite large.
  * Known Issues:
  *
  *==============================================================================
  */
-#define GCALAB_VERSION 0.18
+#define GCALAB_VERSION 0.19
 #define GCALAB_AUTHOR "David J. Warne"
 #define GCALAB_CW_YEAR 2013
 #include "GCALab.h"

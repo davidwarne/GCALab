@@ -44,6 +44,7 @@
  *       v 0.050 (14/08/2012) - Re-Implemented SubDivide (TODO: 4), and implemented
  *                              RemoveDuplicateVertices().
  *       v 0.055 (28/09/2012) - Implemented CreateTopology functions, and CreateDual()
+ *       v 0.060 (13/02/2013) - Added support for genus-2 topolog mesh creation.
  *
  *
  * Descritpion: Implementation of mesh construction and manipulation functions

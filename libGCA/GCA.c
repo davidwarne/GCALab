@@ -91,6 +91,12 @@
  *                                based rule codes
  *       v 0.16 (16/01/2013) - i. added windowsize parameter for CreateECA()
  *       v 0.17 (18/01/2013) - i. Added AttLength() and TransLength() functions
+ *       v 0.18 (25/02/2013) - i. Added neighbourhood type option, either Von Neumann or Moore
+ *                                neighbourhoods are supported
+ *                             ii. Created life based rule type (from Carter Bays' paper)
+ *       v 0.19 (01/03/2013) - i. Fixed bug in life rule which was incorrectly extracting 
+ *                                environment and fertiliy thresholds.
+ *                             ii. added population desity function.
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -514,7 +520,7 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 		case LIFE_RULE_TYPE: /*Based on Carter Bay's paper*/
 		{
 			unsigned int E_l,E_h,F_l,F_h;
-			unsigned int pop;
+			unsigned int pop,q,r;
 			unsigned int C;
 			GCA->LUT_size = pow(params->s,params->k);
 			GCA->ruleLUT = (state*)malloc((GCA->LUT_size)*sizeof(state));
@@ -524,16 +530,24 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 				return NULL;
 			}
 
-			/*for a life rule we assume oddnly binary CA*/
+			/*for a life rule we assume only binary CA*/
 			if (GCA->params->s != 2)
 			{
 				return NULL;
 			}
 
-			F_h = params->rule & 0xF;
-			F_l = (params->rule >> 4)  & 0xF;
-			E_h = (params->rule >> 8) & 0xF;
-			E_l = (params->rule >> 12) & 0xF;
+			r = params->rule % 10;
+			q = params->rule / 10;
+			F_h = r;
+			r = q % 10;
+			q = q / 10;
+			F_l = r;
+			r = q % 10;
+			q = q / 10;
+			E_h = r;
+			r = q % 10;
+			q = q / 10;
+			E_l = r;
 			/*life rule has for parts E_l E_h F_l F_h*/
 			for (i=0;i<GCA->LUT_size;i++)
 			{
@@ -2632,4 +2646,51 @@ float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigne
 	}
 
 	return (numtrans > 0) ? ((float)totaloflengths)/((float)numtrans) : 0.0;
+}
+
+/*
+ * PopDensity(): Calculates the "live" population density over the coarse of the
+ *               CA's evolution.
+ * Parameters:
+ * 	   GCA - go figure...
+ * 	   ics - the initial configuration, if set to NULL then a random initial configuration
+ * 	         is used.
+ * 	   T - the number of timesteps 
+ * 	   dense - the array to store densities
+ */
+float* PopDensity(GraphCellularAutomaton *GCA,chuck* ics,unsigned int T, float *dense)
+{
+	int i,j;
+	unsigned int count;
+	if (!dense)
+	{
+		dense = (float*)malloc(T*sizeof(float));
+		if (!dense)
+		{
+			return NULL;
+		}
+	}
+
+	if (ics)
+	{
+		SetCAIC(GCA,ics,EXPLICIT_IC_TYPE);
+		ResetCA(GCA);
+	}
+	else
+	{
+		SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+		ResetCA(GCA);
+	}
+
+	for (i=0;i<T;i++)
+	{
+		count = 0;
+		for (j=0;j<(GCA->params->N);j++)
+		{
+			count += (GetCellStatePacked(GCA,j,0) > 0);
+		}
+		dense[i] = ((float)count)/(GCA->params->N);
+		CANextStep(GCA);
+	}
+	return dense;
 }
