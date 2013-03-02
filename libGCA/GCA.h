@@ -181,6 +181,7 @@ float Z_param(GraphCellularAutomaton *GCA);
 float G_density(GraphCellularAutomaton *GCA,chunk* ics, unsigned int n);
 float AttLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned t);
 float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned t);
+float* PopDensity(GraphCellularAutomaton *GCA,chunk* ics,unsigned int T, float *dense);
 
 /*TODO: move this Thread stuff into another file, too lazy for now*/
 #ifndef NO_THREADS

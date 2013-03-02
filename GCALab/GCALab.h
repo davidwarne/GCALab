@@ -129,7 +129,7 @@
 #endif
 
 #ifndef GCALAB_MAXNUM_OPS
-#define GCALAB_MAXNUM_OPS 9
+#define GCALAB_MAXNUM_OPS 20
 #endif
 
 typedef struct GCALab_CL_Options_struct GCALab_CL_Options;
@@ -299,5 +299,6 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt,int argc, char ** a
 char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Reverse(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Pop(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 #endif
 #endif

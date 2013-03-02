@@ -90,6 +90,7 @@
  *                             v.  imporved error handling of command so crashes are less common.
  *       v 0.19 (01/03/2012) - i. Included and tested neighbourhood type and life rule switch in
  *                                the gca create command.
+ *                             ii. Added a configuration edit mode when running in Graphics mode.
  *
  * Description: Main Program for Graph Cellular Automata generation, simulation,
  *              analysis and Visualisation.
@@ -109,7 +110,7 @@
  * 		12. change input args so option id codes do not need to be known explicitly - done (0.18)
  * 		13. add register command and register operation functions - done (0.18)
  * 		14. Add cell picking so a test configuration is easy to test. Also an effective method
- * 		    of loading an initial configuration file would also be good.
+ * 		    of loading an initial configuration file would also be good. - done (0.19)
  * 		15. LUT colour mode need more colours (possibly a continuous colourmap) since the
  * 		    moore neighbourhood LUTs are quite large.
  * Known Issues:
@@ -132,11 +133,11 @@ unsigned char GCALab_mode;
 unsigned int cur_ws;
 #ifdef WITH_GRAPHICS
 /* light settings*/
-GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
-GLfloat diffuseLight[] = { 3.0f, 3.0f, 3.0f, 1.0f };
-GLfloat position[] = { 2.0f, 2.0f, 2.0f, 1.0f };
-GLfloat positionMirror[] = { 2.0f, -2.0f, 2.0f, 1.0f };
-GLfloat fogCol[] = {0.5f,0.5f,0.5f,1.0f};
+GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+GLfloat diffuseLight[] = { 10.0f, 10.0f, 10.0f, 1.0f };
+GLfloat position[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat positionMirror[] = { 1.0f, -1.0f, 1.0f, 1.0f };
+GLfloat fogCol[] = {0.4f,0.4f,0.4f,0.5f};
 GLUquadric* quad;
 float translateX,translateY,zoom;
 float theta, phi;
@@ -145,10 +146,11 @@ unsigned int cur_res;
 unsigned char moving;
 int xprev;
 int yprev;
-float cellColf[8][3] = {{0,0,0},{1,1,1},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1,1,0},{0,1,1}};
+float cellColf[8][3] = {{0.2,0.2,0.2},{1,1,1},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1,1,0},{0,1,1}};
 float lutColf[16][3] = {{0,0,0},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1,1,0},{0,1,1},{1,1,1},
 						{1,0.5,0},{0.0,1,0.5},{0.5,0,1},{1,0.5,1},{1,1,0.5},{0.5,1,1},{0.5,0.5,0.5}};
 unsigned char lutColmode;
+unsigned char GCALab_confedit_mode;
 #endif
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
@@ -339,10 +341,10 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	args = "i -f filename (-g | -r)";
 	desc = "Save a GCA or result with id to file";
 	GCALab_Register_Operation("save",&GCALab_OP_Save,args,desc);
-	args = "i -t Tfinal [-I] [-f icfile | -c ictype]";
+	args = "i -t Tfinal [-I] [-f icfile | -c (random | point | checker | stripe)]";
 	desc = "simulates the id to Tfinal";
 	GCALab_Register_Operation("sim",&GCALab_OP_Simulate,args,desc);
-	args = "i (((-m meshfile | -t numcells genus) -s numstates -r ruletype rulecode) | -eca numCells numNeighbours rule) [-c ictype] [-w windowsize]";
+	args = "i (((-m meshfile | -t numcells genus) -s numstates -r (code | totalistic | thresh | life ) rulecode) | -eca numCells numNeighbours rulecode) [-c (random | point | checker | stripe)] [-w windowsize] [-nh (neumann | moore)]";
 	desc = "Creates a new graph cellular automaton in the current workspace";
 	GCALab_Register_Operation("gca",&GCALab_OP_GCA,args,desc);
 	args = "i -n numsamples -t timesteps -e entropytype";
@@ -357,6 +359,9 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	args = "i (-n numsamples | -l config0 configN)";
 	desc = "Computes state frequency histogram for each cell in the graph cellular automaton at i";
 	GCALab_Register_Operation("freq",&GCALab_OP_Freq,args,desc);
+	args = "i -t timesteps";
+	desc = "Computes the non-quiescient population density over time.";
+	GCALab_Register_Operation("pop",&GCALab_OP_Pop,args,desc);
 	return GCALAB_SUCCESS;
 }
 
@@ -661,6 +666,7 @@ void GCALab_SplashScreen(void)
 			GCALab_PrintLicense();
 			break;
 		case GCALAB_GRAPHICS_MODE:
+			GCALab_PrintLicense();
 			break;
 	}
 	return;
@@ -671,10 +677,9 @@ void GCALab_SplashScreen(void)
 void GCALab_PrintUsage()
 {
 	printf("CGALab - Options");
+	printf("\t [-g,--graphics]\n\t\t : start in interactive mode\n");
 	printf("\t [-i,--interactive]\n\t\t : start in interactive mode\n");
 	printf("\t [-b,--batch]\n\t\t : start in batch mode\n");
-	printf("\t [-l,--load] filename\n\t\t : load *.gca file\n");			
-	printf("\t [-o,--save] filename\n\t\t : save results in *.gca file\n");
 }
 
 /* GCALab_CommandPrompt(): Prompts the user to enter a command in text mode, the
@@ -919,30 +924,6 @@ GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 					case 'g':
 						CL_opt->mode = GCALAB_GRAPHICS_MODE;
 						break;
-					case 'l':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->load_CA = 1;
-							CL_opt->CAInputFilename = argv[++i];	 
-						}
-						else
-						{
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
-					case 'o':
-						if (optslist[j+1] == '\0')
-						{
-							CL_opt->save_CA = 1;
-							CL_opt->CAOutputFilename = argv[++i];	
-						}
-						else
-						{
-							GCALab_PrintUsage();
-							return NULL;
-						}
-						break;
 				}
 				
 				j++;
@@ -962,16 +943,6 @@ GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 			else if(!strcmp(argv[i],"--graphics"))
 			{
 				CL_opt->mode = GCALAB_GRAPHICS_MODE;
-			}
-			else if (!strcmp(argv[i],"--load"))
-			{
-				CL_opt->load_CA = 1;
-				CL_opt->CAInputFilename = argv[++i];	
-			}
-			else if(!strcmp(argv[i],"--save"))
-			{
-				CL_opt->save_CA = 1;
-				CL_opt->CAOutputFilename = argv[++i];	
 			}
 			else /*unknown option*/
 			{
@@ -1250,8 +1221,8 @@ void GCALab_PrintOperations(void)
 	fprintf(stdout,"-----------------\n");
 	for (i=0;i<GCALab_numOps;i++)
 	{
-		fprintf(stdout,"Synopsis: %s %s\n",GCALab_Ops[i].id,GCALab_Ops[i].args);
-		fprintf(stdout,"Description: %s\n",GCALab_Ops[i].desc);
+		fprintf(stdout,"\tSynopsis: %s %s\n",GCALab_Ops[i].id,GCALab_Ops[i].args);
+		fprintf(stdout,"\tDescription: %s\n\n",GCALab_Ops[i].desc);
 	}
 	return;
 }
@@ -1477,14 +1448,15 @@ void GCALab_Graphics_Display(void)
 	/*clear screen for a new render*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-	
+
+	glPushMatrix();
+	/* draw the reflected scene first*/
+	glLightfv(GL_LIGHT0,GL_POSITION,positionMirror);
 	/*transformations*/
 	glTranslatef(translateX,translateY,zoom-10.5f);
 	glRotatef(phi+30.0f,1.0f,0.0f,0.0f);
 	glRotatef(theta,0.0f,1.0f,0.0f);
 	
-	/* draw the reflected scene first*/
-	glLightfv(GL_LIGHT0,GL_POSITION,positionMirror);
 	glPushMatrix();
 	glFrontFace(GL_CW);
 	glScalef(1.0,-1.0,1.0);
@@ -1504,12 +1476,17 @@ void GCALab_Graphics_Display(void)
 	} 
 	glFrontFace(GL_CCW);
 	glPopMatrix();
-    
+    glPopMatrix();
 
-	GCALab_Graphics_DrawGrid();
-
+	glPushMatrix();
 	/* draw the "real" scene... but how do we define real?*/
 	glLightfv(GL_LIGHT0, GL_POSITION, position); 
+	/*transformations*/
+	glTranslatef(translateX,translateY,zoom-10.5f);
+	glRotatef(phi+30.0f,1.0f,0.0f,0.0f);
+	glRotatef(theta,0.0f,1.0f,0.0f);
+	GCALab_Graphics_DrawGrid();
+
 	
 	glPushMatrix();
 	glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
@@ -1525,7 +1502,7 @@ void GCALab_Graphics_Display(void)
 			glPopMatrix();
 		}
 	} 
-
+	glPopMatrix();
 	glutSwapBuffers();
 }
 
@@ -1576,6 +1553,7 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 		free(n);
 	}
 	glEnd();
+
 }
 
 /* GCALab_Graphics_DrawBBox(): draws a bounding box
@@ -1635,6 +1613,71 @@ void GCALab_Graphics_DrawGrid(void)
 	glEnable(GL_LIGHTING);
 }
 
+/* GCALab_Graphics_PickCell(): to be used with object picking in 
+ * configuration ediut mode
+ */
+unsigned int GCALab_Graphics_PickCell(int x,int y)
+{
+	mesh *m;
+	unsigned int i;
+	GraphCellularAutomaton *gca;
+	float f;
+	GLint v[4];
+	GLubyte tag[3];
+	glGetIntegerv(GL_VIEWPORT,v);
+	/*clear screen for a new render*/
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+	
+	/*transformations*/
+	glTranslatef(translateX,translateY,zoom-10.5f);
+	glRotatef(phi+30.0f,1.0f,0.0f,0.0f);
+	glRotatef(theta,0.0f,1.0f,0.0f);
+	
+
+	glDisable(GL_BLEND);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_LIGHT0);
+	glDisable(GL_MULTISAMPLE); 
+	glDisable(GL_FOG);
+	glPushMatrix();
+	glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
+	glPopMatrix();
+	if (GCALab_numWS > 0)
+	{
+		if (WS(cur_ws)->numGCA > 0)
+		{
+			glPushMatrix();
+			glTranslatef(0.0,GCALAB_GRAPHICS_OFFSET,0.0);
+			m = WS(cur_ws)->GCAGeometry[cur_gca];
+			gca = WS(cur_ws)->GCAList[cur_gca];
+	
+			glBegin(GL_TRIANGLES);
+			for (i=0;i<m->fList->numFaces;i++)
+			{
+				tag[2] = i & 0xFF;
+				tag[1] = (i >> 8) & 0xFF;
+				tag[0] = (i >> 16) & 0xFF;
+				/*change material properties based on cell state*/
+				glColor3ub(tag[0],tag[1],tag[2]);
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
+				glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+			}
+			glEnd();
+			glPopMatrix();
+		}
+	} 
+	glReadPixels(x,v[3]-1-y,1,1,GL_RGB,GL_UNSIGNED_BYTE,(void*)tag);
+	i = 0;
+	glEnable(GL_BLEND);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_FOG);
+	i = (((unsigned int)tag[0]) << 16) | (((unsigned int)tag[1]) << 8) | ((unsigned int)tag[2]);
+	return i;
+}
 /* GCALab_Graphics_keyPressed():handles standard key press events
  */
 void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
@@ -1706,6 +1749,9 @@ void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
 		case 'l':
 			lutColmode = !lutColmode;
 			break;
+		case 'p':
+			GCALab_confedit_mode = !GCALab_confedit_mode;
+			break;
 	}
 }
 
@@ -1753,47 +1799,69 @@ void GCALab_Graphics_SpecialKeyPressed(int key, int x, int y)
  */
 void GCALab_Graphics_MouseClick(int button,int state,int x, int y)
 {
-	switch(button)
+	if (!GCALab_confedit_mode)
 	{
-		case GLUT_LEFT_BUTTON:
-			switch(state)
+		switch(button)
+		{
+			case GLUT_LEFT_BUTTON:
+				switch(state)
+				{
+					case GLUT_DOWN:
+						moving = GCALAB_GRAPHICS_INTERACTION_ROTATE;
+						xprev = x;
+						yprev = y;
+						break;
+					case GLUT_UP:
+						moving = GCALAB_GRAPHICS_INTERACTION_NONE;
+					break;
+				}
+				break;
+			case GLUT_MIDDLE_BUTTON:
+				switch(state)
+				{
+					case GLUT_DOWN:
+						moving = GCALAB_GRAPHICS_INTERACTION_ZOOM;
+						xprev = x;
+						yprev = y;
+						break;
+					case GLUT_UP:
+						moving = GCALAB_GRAPHICS_INTERACTION_NONE;
+						break;
+				}
+				break;
+			case GLUT_RIGHT_BUTTON:
+				switch(state)
+				{
+					case GLUT_DOWN:
+						moving = GCALAB_GRAPHICS_INTERACTION_TRANSLATE;
+						xprev = x;
+						yprev = y;
+						break;
+					case GLUT_UP:
+						moving = GCALAB_GRAPHICS_INTERACTION_NONE;
+						break;
+				}
+				break;		
+		}
+	}
+	else /*configuration edit mode*/
+	{
+		/*only continue if the id was valid*/
+		if (GCALab_ValidWSId(cur_ws) != GCALAB_INVALID_WS_ERROR)
+		{
+			if (WS(cur_ws)->numGCA != 0)
 			{
-				case GLUT_DOWN:
-					moving = GCALAB_GRAPHICS_INTERACTION_ROTATE;
-					xprev = x;
-					yprev = y;
-					break;
-				case GLUT_UP:
-					moving = GCALAB_GRAPHICS_INTERACTION_NONE;
-					break;
+				switch(button)
+				{
+					case GLUT_LEFT_BUTTON:
+						SetCellStatePacked(WS(cur_ws)->GCAList[cur_gca],GCALab_Graphics_PickCell(x,y),1);
+						break;
+					case GLUT_RIGHT_BUTTON:
+						SetCellStatePacked(WS(cur_ws)->GCAList[cur_gca],GCALab_Graphics_PickCell(x,y),0);
+						break;
+				}
 			}
-			break;
-		case GLUT_MIDDLE_BUTTON:
-			switch(state)
-			{
-				case GLUT_DOWN:
-					moving = GCALAB_GRAPHICS_INTERACTION_ZOOM;
-					xprev = x;
-					yprev = y;
-					break;
-				case GLUT_UP:
-					moving = GCALAB_GRAPHICS_INTERACTION_NONE;
-					break;
-			}
-			break;
-		case GLUT_RIGHT_BUTTON:
-			switch(state)
-			{
-				case GLUT_DOWN:
-					moving = GCALAB_GRAPHICS_INTERACTION_TRANSLATE;
-					xprev = x;
-					yprev = y;
-					break;
-				case GLUT_UP:
-					moving = GCALAB_GRAPHICS_INTERACTION_NONE;
-					break;
-			}
-			break;		
+		}
 	}
 }
 
@@ -2979,6 +3047,7 @@ char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt_id,int nparams, char *
 	int i;
 	chunk range[2];
 	chunk *ics;
+	GraphCellularAutomaton *GCA;
 	numSamples = 0;
 	for (i=0;i<nparams;i++)
 	{
@@ -2993,7 +3062,6 @@ char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt_id,int nparams, char *
 		}
 	}
 			
-	GraphCellularAutomaton *GCA;
 	/*Grab a reference to the CA we want to play with*/
 	GCA = WS(ws_id)->GCAList[trgt_id];
 	(*res) = (GCALabOutput*)malloc(sizeof(GCALabOutput)); 
@@ -3032,6 +3100,42 @@ char GCALab_OP_Freq(unsigned char ws_id,unsigned int trgt_id,int nparams, char *
 	sprintf((*res)->id,"(%d):F",trgt_id);
 	(*res)->datalen = size;
 	(*res)->data = (void*)freqs;
+	return GCALAB_SUCCESS;
+}
+
+char GCALab_OP_Pop(unsigned char ws_id,unsigned int trgt_id,int argc, char ** argv,GCALabOutput **res)
+{
+	unsigned int i,T;
+	char rc;
+	float * dense;
+	GraphCellularAutomaton *GCA;
+	
+	for (i=0;i<argc;i++)
+	{
+		if (!strcmp(argv[i],"-t"))
+		{
+			T = (unsigned int)atoi(argv[++i]);
+		}
+	}
+
+	/*Grab a reference to the CA we want to play with*/
+	GCA = WS(ws_id)->GCAList[trgt_id];
+	(*res) = (GCALabOutput*)malloc(sizeof(GCALabOutput)); 
+				
+	dense = (float *)malloc(T*sizeof(float));
+	rc = GCALab_TestPointer((void*)dense);
+	if (rc <= 0)
+	{
+		return rc;
+	}
+
+	PopDensity(GCA,NULL,T,dense);
+
+	(*res)->type = FLOAT32;
+	sprintf((*res)->id,"(%d):D",trgt_id);
+	(*res)->datalen = T;
+	(*res)->data = (void*)dense;
+	
 	return GCALAB_SUCCESS;
 }
 #else

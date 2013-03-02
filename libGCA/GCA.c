@@ -97,6 +97,10 @@
  *       v 0.19 (01/03/2013) - i. Fixed bug in life rule which was incorrectly extracting 
  *                                environment and fertiliy thresholds.
  *                             ii. added population desity function.
+ *                             iii. fixed bug in moore neighbourhood construction (same cells
+ *                                  were being included multi[le times)
+ *                             iv. fix bug in GetNeighbourhood_config when handling variable 
+ *                                 neighbourhood sizes.
  *
  * Description: Implementation of Graph Cellular Automata Libarary
  *
@@ -208,17 +212,9 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,unsigned char 
 							tf = 0;
 							for (jj=0;jj<k_tmp-2;jj++)
 							{
-								if (((f1[j] == f2[jj]) && (f1[j+1] == f2[jj+1])) 
-									|| ((f1[j] == f2[jj+1]) && (f1[j+1] == f2[jj])))
-								{
-									tf |= 1;
-								}
+								tf |= (((f1[j] == f2[jj]) && (f1[j+1] == f2[jj+1])) || ((f1[j] == f2[jj+1]) && (f1[j+1] == f2[jj])));
 							}
-							if (((f1[j] == f2[k_tmp-2]) && (f1[j+1] == f2[0])) 
-								|| ((f1[j] == f2[0]) && (f1[j+1] == f2[k_tmp-2])))
-							{
-								tf |= 1;
-							}
+							tf |=  (((f1[j] == f2[k_tmp-2]) && (f1[j+1] == f2[0])) || ((f1[j] == f2[0]) && (f1[j+1] == f2[k_tmp-2])));
 
 							if (tf && (ii != i))
 								break;
@@ -232,17 +228,10 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,unsigned char 
 						tf = 0;
 						for (jj=0;jj<k_tmp-2;jj++)
 						{
-							if (((f1[k_tmp-2] == f2[jj]) && (f1[0] == f2[jj+1])) 
-								|| ((f1[k_tmp-2] == f2[jj+1]) && (f1[0] == f2[jj])))
-							{
-								tf |= 1;
-							}
+							tf |= (((f1[k_tmp-2] == f2[jj]) && (f1[0] == f2[jj+1])) || ((f1[k_tmp-2] == f2[jj+1]) && (f1[0] == f2[jj])));
 						}
-						if (((f1[k_tmp-2] == f2[k_tmp-2]) && (f1[0] == f2[0])) 
-							|| ((f1[k_tmp-2] == f2[0]) && (f1[0] == f2[k_tmp-2])))
-						{
-							tf |= 1;
-						}
+
+						tf |= (((f1[k_tmp-2] == f2[k_tmp-2]) && (f1[0] == f2[0])) || ((f1[k_tmp-2] == f2[0]) && (f1[0] == f2[k_tmp-2])));
 						if (tf && (ii != i))
 							break;
 					}	
@@ -277,8 +266,16 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,unsigned char 
 
 							if (tf && (ii != i))
 							{
-								graph[i*(k_tmp-1) + num_nb] = ii;
-								num_nb++;
+								for (jj=0;jj<num_nb;jj++)
+								{
+									if (graph[i*(k_tmp-1)+jj] == ii)
+										break;
+								}
+								if (jj == num_nb)
+								{
+									graph[i*(k_tmp-1) + num_nb] = ii;
+									num_nb++;
+								}
 							}
 						}
 					}
@@ -862,7 +859,7 @@ unsigned int GetNeighbourhood_config(GraphCellularAutomaton * GCA,unsigned int i
 			break;
 		}
 	}
-	k_local = GCA->params->k-1;
+	k_local = j;
 	nhood = 0;
 	nhood |= GetCellStatePacked(GCA,i,t) << GCA->log2s*((GCA->params->k-1)/2);
 		
@@ -2649,8 +2646,8 @@ float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigne
 }
 
 /*
- * PopDensity(): Calculates the "live" population density over the coarse of the
- *               CA's evolution.
+ * PopDensity(): Calculates the "live" population density (i.e., probability that a cell is 
+ *               non-quiescient) over the coarse of the CA's evolution.
  * Parameters:
  * 	   GCA - go figure...
  * 	   ics - the initial configuration, if set to NULL then a random initial configuration
@@ -2658,10 +2655,12 @@ float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigne
  * 	   T - the number of timesteps 
  * 	   dense - the array to store densities
  */
-float* PopDensity(GraphCellularAutomaton *GCA,chuck* ics,unsigned int T, float *dense)
+float* PopDensity(GraphCellularAutomaton *GCA,chunk* ics,unsigned int T, float *dense)
 {
 	int i,j;
 	unsigned int count;
+	
+	/*test if the user has supplied their own memory refernce*/
 	if (!dense)
 	{
 		dense = (float*)malloc(T*sizeof(float));
@@ -2671,6 +2670,7 @@ float* PopDensity(GraphCellularAutomaton *GCA,chuck* ics,unsigned int T, float *
 		}
 	}
 
+	/*test if the user has supplied their own initial conditions*/
 	if (ics)
 	{
 		SetCAIC(GCA,ics,EXPLICIT_IC_TYPE);
@@ -2682,6 +2682,7 @@ float* PopDensity(GraphCellularAutomaton *GCA,chuck* ics,unsigned int T, float *
 		ResetCA(GCA);
 	}
 
+	/*simulate and recode population density*/
 	for (i=0;i<T;i++)
 	{
 		count = 0;
@@ -2689,7 +2690,7 @@ float* PopDensity(GraphCellularAutomaton *GCA,chuck* ics,unsigned int T, float *
 		{
 			count += (GetCellStatePacked(GCA,j,0) > 0);
 		}
-		dense[i] = ((float)count)/(GCA->params->N);
+		dense[i] = ((float)count)/((float)GCA->params->N);
 		CANextStep(GCA);
 	}
 	return dense;
