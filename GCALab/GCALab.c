@@ -133,10 +133,10 @@ unsigned char GCALab_mode;
 unsigned int cur_ws;
 #ifdef WITH_GRAPHICS
 /* light settings*/
-GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-GLfloat diffuseLight[] = { 10.0f, 10.0f, 10.0f, 1.0f };
-GLfloat position[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-GLfloat positionMirror[] = { 1.0f, -1.0f, 1.0f, 1.0f };
+GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
+GLfloat diffuseLight[] = { 100.0f, 100.0f, 100.0f, 1.0f };
+GLfloat position[] = { 20.0f, 20.0f, 20.0f, 1.0f };
+GLfloat positionMirror[] = { 20.0f, -20.0f, 20.0f, 1.0f };
 GLfloat fogCol[] = {0.4f,0.4f,0.4f,0.5f};
 GLUquadric* quad;
 float translateX,translateY,zoom;
@@ -1428,7 +1428,7 @@ void GCALab_Graphics_Init(void)
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	glLightfv(GL_LIGHT0, GL_POSITION, position); 
 	/*smooth shading model*/
-	glShadeModel(GL_SMOOTH);
+	glShadeModel(GL_FLAT);
 	/*fog effect stuff*/
 	glFogi(GL_FOG_MODE,GL_LINEAR);
 	glFogfv(GL_FOG_COLOR,fogCol);
