@@ -1184,6 +1184,7 @@ void GCALab_ShutDown(char rc)
 				sum += WS(i)->numcommands;
 				GCALab_UnLockWS(i);
 			}
+			usleep(1);
 		}
 
 	}

@@ -183,21 +183,4 @@ float AttLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned 
 float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned t);
 float* PopDensity(GraphCellularAutomaton *GCA,chunk* ics,unsigned int T, float *dense);
 
-/*TODO: move this Thread stuff into another file, too lazy for now*/
-#ifndef NO_THREADS
-	#include <pthread.h>
-	#ifndef NUM_THREADS
-		#define NUM_THREADS 4
-	#endif
-	/*a struct to simply make passing data to threads easier*/
-	struct ThreadData_struct
-	{
-		unsigned int ID;
-		void * param1;
-		void * param2;
-		void * param3;
-	};
-	typedef struct ThreadData_struct ThreadData; 
-#endif
-
 #endif

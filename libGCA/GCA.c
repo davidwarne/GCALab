@@ -1142,6 +1142,10 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 		U_i = GetNeighbourhood(GCA,i);
 		for (j=0;j<(GCA->params->k-1);j++)
 		{
+			/*if (U_i[j] == 0xFFFFFFFF)
+			{
+				break;
+			}*/
 			U_j = GetNeighbourhood(GCA,U_i[j]);
 			/*get the neighbour number for each cell in the other neighbourhood*/
 			ii = 0;
@@ -1225,6 +1229,10 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 		U_i = GetNeighbourhood(GCA,i);
 		for (j=0;j<(GCA->params->k-1);j++)
 		{
+			/*if (U_i[j] == 0xFFFFFFFF)
+			{
+				break;
+			}*/
 			U_j = GetNeighbourhood(GCA,U_i[j]);
 			/*get the neighbour number for each cell in the other neighbourhood*/
 			ii = 0;
@@ -1976,8 +1984,6 @@ unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk
 				/*Run until the time equals the window size*/
 				t = 0;
 				while ((t<WSIZE) && !IsAttCyc(GCA))
-				{
-					/*step in time*/
 					CANextStep(GCA);
 					/*accumulate counts*/
 					for (j=0;j<s;j++)
@@ -1997,100 +2003,28 @@ unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk
 	return counts;
 }
 
-#ifndef NO_THREADS
-/* ComputeExactProbs_worker(): thread entry function for ComputeExactProbs()
- *
- * Parameters:
- *     params - void pointer can be cast to a ThreadData pointer containing a
- *              Graph CA, a range of pre-Images and an array to store counts
- */
-void *ComputeExactProbs_worker(void * params)
-{
-	ThreadData *tData;
-	GraphCellularAutomaton *GCA;
-	unsigned int *counts;
-	chunk *range;
-	
-	/*unpack data*/
-	tData = (ThreadData*) params;
-	GCA = (GraphCellularAutomaton *) tData->param1;
-	range = (chunk *) tData->param2;
-	counts = (unsigned int *)tData->param3;
-	
-	SumCAImages(GCA,counts,range,0);
-	pthread_exit((void*)((unsigned long long int)tData->ID));
-}
-#endif
-
 /* ComputeExactProbs(): Computes the exact probability of a particular configuration
  *                      occuring after t = 0.
  * Parameters:
  *		GCA - graph cellular automaton
  *
- * Note:
- *    by default this function is threaded using pthreads, if this is desired to 
- *    be disabled then compile with the -DNO_THREADS compiler flag
  */
 float *ComputeExactProbs(GraphCellularAutomaton *GCA)
 {
 	unsigned int i,j,N,s;
 	float *probs;
 	
-#ifndef NO_THREADS	
-	GraphCellularAutomaton *GCAs[NUM_THREADS];
-	unsigned int *counts[NUM_THREADS];
-	chunk *ranges[NUM_THREADS];
-	unsigned int work_per_thread,rem;
-	/*pthread stuff*/
-	pthread_t workers[NUM_THREADS];
-	pthread_attr_t attr;
-	void *status;
-	int r_code;
-	ThreadData *tData[NUM_THREADS];
-	
-#else
 	unsigned int *counts;
 	chunk range[2];
-#endif
 
 	N = GCA->params->N;
 	s = (unsigned int)GCA->params->s;
 	
-#ifndef NO_THREADS	
-	/*allocate memory*/
-	for (i=0;i<NUM_THREADS;i++)
-	{
-		tData[i] = (ThreadData*)malloc(sizeof(ThreadData));
-		if (!tData[i])
-		{
-			return NULL;
-		}
-		
-		GCAs[i] = CopyGCA(GCA);
-		if (!GCAs[i])
-		{
-			return NULL;
-		}
-		
-		counts[i] = (unsigned int*)malloc(N*s*sizeof(unsigned int)); 
-		if (!counts[i])
-		{
-			return NULL;
-		}
-		
-		ranges[i] = (chunk *)malloc(2*sizeof(chunk));
-		if (!ranges[i])
-		{
-			return NULL;
-		}
-	}
-#else
 	counts = (unsigned int*)malloc(N*s*sizeof(unsigned int)); 
 	if (!counts)
 	{
 		return NULL;
 	}
-#endif
 
 	probs = (float*)malloc(N*s*sizeof(float)); 
 	if (!probs)
@@ -2099,62 +2033,6 @@ float *ComputeExactProbs(GraphCellularAutomaton *GCA)
 	}
 	memset((void *)probs,0,N*s*sizeof(float));
 	
-#ifndef NO_THREADS	
-	/* Initialize and set thread detached attribute */
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-	
-	work_per_thread = ((0x1 << ((GCA->params->N)*(GCA->log2s))) - 1)/NUM_THREADS;
-	rem = ((0x1 << ((GCA->params->N)*(GCA->log2s))) - 1)%NUM_THREADS;
-	ranges[0][0] = 0;
-	/*first thread takes the slack*/
-	ranges[0][1] = work_per_thread + rem;
-	for (i=1;i<NUM_THREADS;i++)
-	{
-		ranges[i][0] = ranges[i-1][1];
-		ranges[i][1] = ranges[i][0] + work_per_thread;
-	}
-	
-	
-	/*fire up threads...start working them cores*/
-	for (i=0;i<NUM_THREADS;i++)
-	{	
-		/*pack data for each thread*/
-		tData[i]->ID = i;		
-		tData[i]->param1 = (void *)GCAs[i];
-		tData[i]->param2 = (void *)ranges[i];
-		tData[i]->param3 = (void *)counts[i];
-		
-		/*create thread*/
-		r_code = pthread_create(&workers[i],&attr,ComputeExactProbs_worker,(void *)tData[i]);
-		if(r_code)
-		{
-			fprintf(stderr,"Thread %d failed to start Return code [%d]\n",i,r_code);
-			exit(1);
-		}
-	}
-	
-	/* Free attribute and wait for the other threads */
-	pthread_attr_destroy(&attr);
-	for(i=0;i<NUM_THREADS;i++) 
-	{
-		r_code = pthread_join(workers[i], &status);
-		if(r_code)
-		{
-			fprintf(stderr,"Thread %d failed to join. Return code [%d]\n",i,r_code);
-			exit(1);
-		}
-	}
-
-	/*accumulate all results*/
-	for (i=0;i<NUM_THREADS;i++)
-	{
-		for (j=0;j<N*s;j++)
-		{
-			probs[j] += (float)counts[i][j];
-		}
-	}
-#else
 	range[0] = 0x0;
 	range[1] = (0x1 << ((GCA->params->N)*(GCA->log2s))) - 1;
 	SumCAImages(GCA,counts,range,0);
@@ -2162,25 +2040,13 @@ float *ComputeExactProbs(GraphCellularAutomaton *GCA)
 	{
 		probs[j] += (float)counts[j];
 	}
-#endif
 	
 	for (j=0;j<N*s;j++)
 	{
 		probs[j] /= (float)N;
 	}
 	
-#ifndef NO_THREADS	
-	/*clean up*/
-	for (i=0;i<NUM_THREADS;i++)
-	{
-		free(tData[i]);
-		free(counts[i]);
-		free(GCAs[i]);
-		free(ranges[i]);
-	}
-#else
 	free(counts);
-#endif
 
 	return probs;
 }
