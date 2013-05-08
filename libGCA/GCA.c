@@ -139,15 +139,17 @@
 
 #include "GCA.h"
 
-/* GenerateTopology(): Creates a topology array from a mesh. If meash is NULL
- *                     then a regular 1-dimensional genus-1 topology of N cells
- *                     is created.
- * Parameters:
- *     m - mesh structure to generate the topology from, can be NULL
- *     N - pointer to number of cells
- *     k - pointer to neighbourhood size
- * Returns:
- *     an array of unsigned int of length m->vList->numVerts)*k or N*k
+/** 
+ * @brief Creates a topology array from a mesh. 
+ * @details If mesh is NULL then a regular 1-dimensional genus-1 topology of \a N cells 
+ * is created.
+ * 
+ * @param m mesh structure to generate the topology from, can be NULL.
+ * @param N pointer to number of cells.
+ * @param k  pointer to neighbourhood size.
+ * 
+ * @returns An array of unsigned int of length <em>m->vList->numVerts*k</em> or <em>N*k</em>.
+ * @retval NULL Indicates that the Topology could not be constructed.
  */
 unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,unsigned char nh_type, mesh *m)
 {
@@ -289,13 +291,16 @@ unsigned int * GenerateTopology(unsigned int *N, unsigned char *k,unsigned char 
 	return graph;
 }
 
-/* CreateCAParams(): Creates consistent parameters for a Graph Cellular Automata on a given 
- *                   topology.
- * Parameters:
- *     m - the Geometry of the domain (which is used to derive topology)
- *     rule_type - the type of rule that the rule code represents
- *     rule - the rule code
- *     ws - the window-size (i.e., the number of timesteps to store)
+/**
+ * @brief Creates consistent parameters for a Graph Cellular Automata on a given topology.
+ * 
+ * @param m The Geometry of the domain (which is used to derive topology).
+ * @param rule_type The type of rule that the rule code represents.
+ * @param rule The rule code.
+ * @param ws The window-size (i.e., the number of timesteps to store).
+ *
+ * @returns A \a CellularAutomatonParameters structure.
+ * @retval NULL Failed to create the parameter structure.
  */
 CellularAutomatonParameters *CreateCAParams(unsigned char nh_type,mesh *m,state s,unsigned char rule_type, unsigned int rule, unsigned int ws)
 {
@@ -320,16 +325,15 @@ CellularAutomatonParameters *CreateCAParams(unsigned char nh_type,mesh *m,state 
 	return params;
 }
 
-/* CreateECA(): Creates a Graph representation of an Elementary Cellular 
- *              Automaton
+/**
+ * @brief Creates a Graph representation of an Elementary Cellular Automaton (ECA).
  *
- * Parameters:
- *     N - number of cells
- *     k - neighbour size (i.e. 2*r +1 )
- *     rule - Wolfram's ECA rule notation
+ * @param N Number of cells.
+ * @param k Neighbour size (i.e. 2*r +1 ).
+ * @param rule Wolfram's ECA rule notation.
  *
- * Returns:
- *     A Graph Elementary Cellular Automaton ready for simlulation
+ * @returns A ECA ready for simulation.
+ * @retval NULL Failed to created the ECA. 
  */
 GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rule,unsigned int ws)
 {
@@ -359,13 +363,13 @@ GraphCellularAutomaton *CreateECA(unsigned int N,unsigned int k,unsigned int rul
 	return ECA;
 }
 
-/* CreateGCA(): Creates a Graph Cellular Automaton
+/**
+ * @brief Creates a Graph Cellular Automaton (GCA).
  *
- * Parameters:
- *     params - parameters defining CA dynamics and topology
+ * @param params Parameters defining CA dynamics and topology.
  *
- * Returns:
- *     A Graph Cellular Automaton ready for simlulation
+ * @returns A GCA ready for simulation.
+ * @retval NULL Failed to create the GCA.
  */
 GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 {
@@ -564,13 +568,13 @@ GraphCellularAutomaton *CreateGCA(CellularAutomatonParameters *params)
 	return GCA;
 }
 
-/* CopyGCA(): Creates copy of the given Graph Cellular Automaton
+/**
+ * @brief Creates copy of the given Graph Cellular Automaton.
  *
- * Parameters:
- *     GCA - The Graph Cellular Automaton to copy
+ * @param GCA The Graph Cellular Automaton to copy.
  *
- * Returns:
- *     A Graph Cellular Automaton identical to the given one
+ * @returns A GCA identical to the given one.
+ * @retval NULL Failed to make a copy of \a GCA.
  */
 GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA)
 {
@@ -660,13 +664,16 @@ GraphCellularAutomaton *CopyGCA(GraphCellularAutomaton *GCA)
 	return GCA_cp;
 }
 
-/* SetCAIC(): Set Cellular Automaton intitial configuration. if ic == NULL
- *            then initial conditions of the given type are generated
+/**
+ * @brief Set Cellular Automaton intitial configuration. 
  *
- * Parameters:
- *     GCA - Graph Cellular Automaton
+ * @details If \a ic == NULL then initial conditions of the given type are generated.
  *
- * TODO: improve the IC types right now very ECA centric
+ * @param GCA A Graph Cellular Automaton.
+ * @param ic A pointer to a user specified initial condition.
+ * @param type The initial condition type to create.
+ *
+ * @todo Improve the IC types right now very ECA centric.
  *
  */
 void SetCAIC(GraphCellularAutomaton *GCA,chunk *ic,unsigned char type)
@@ -720,10 +727,11 @@ void SetCAIC(GraphCellularAutomaton *GCA,chunk *ic,unsigned char type)
 	}
 }
 
-/* ResetCA(): Resets Time-evolution for the Cellular Automaton to t0
- *            with the last used initial conditions.
- * Parameters:
- *     GCA - The Graph Cellular Automaton to reset
+/**
+ * @brief Resets Time-evolution for the Cellular Automaton to \a t0 
+ * with the last used initial conditions.
+ * 
+ * @param GCA The Graph Cellular Automaton to reset
  */
 void ResetCA(GraphCellularAutomaton *GCA)
 {
@@ -733,8 +741,19 @@ void ResetCA(GraphCellularAutomaton *GCA)
 	GCA->t = 0;
 }
 
-/* GetCellStatePacked(): gets the state of the ith cell in the current
- *                       configuration
+/**
+ * @brief Gets the state of the \a ith cell in a configuration.
+ *
+ * @details The current time step is referenced by setting \a t = 0. Previous time steps 
+ * are referenced by \a t > 0 (e.g., \a t == 1 indicates the previous time step)
+ *
+ * @param GCA A Graph Cellular Automaton.
+ * @param i The index of the cell to extract the state.
+ * @param t The time step of interest.
+ *
+ * @returns The state of the \a ith cell of the GCA at the selected time step.
+ *
+ * @remark It must be the case that 0 <= \a t < <em>GCA->param->WSIZE</em>
  */ 
 state GetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,unsigned int t)
 {
@@ -1984,6 +2003,7 @@ unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk
 				/*Run until the time equals the window size*/
 				t = 0;
 				while ((t<WSIZE) && !IsAttCyc(GCA))
+				{
 					CANextStep(GCA);
 					/*accumulate counts*/
 					for (j=0;j<s;j++)

@@ -1,6 +1,6 @@
 /*
  * GCALab: An analysis tool for Graph Cellular Automata
- * Copyright (C) 2012  David J. Warne
+ * Copyright (C) 2013  David J. Warne
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,20 @@
 /** 
  * @file GCA.h
  *
- * @author David J. Warne (david.warne@qut.edu.au)
  * 
+ *
+ * @brief Definitions of Graph Cellular Automata Library.
+ * @details The library contains functions for the creation and analysis of Graph Cellular 
+ * Automata (i.e., Cellular Automata with a topology defined by a connected graph).
+ * Analysis functions include entropy calculations, parameters such as Langton's $\lambda$
+ * and configuration transition graph metrics like the G-density.
+ * @author David J. Warne (david.warne@qut.edu.au)
  * @author School of Electrical Engineering and Computer Science
  * @author Faculty of Science and Engineering
  * @author Queensland University of Technology
- * 
+ * @version 0.19
  * @date 26/03/2012 - 18/01/2013
- *
- * @brief Definition of Graph Cellular Automata Libarary
+ * @copyright GNU Public License.
  *
  * =============================================================================
  */
@@ -140,32 +145,49 @@
 typedef unsigned char state;
 
 /** @brief A Graph Cellular Automaton.*/
-/** @details A Graph Cellular Automaton.*/
 typedef struct GraphCellularAutomaton_struct GraphCellularAutomaton;
+/** @brief Graph Cellular Automaton Parameters.*/
 typedef struct CellularAutomatonParameters_struct CellularAutomatonParameters; 
 
+/** @brief A Graph Cellular Automaton parameter structure.*/
 struct CellularAutomatonParameters_struct
 {
-	unsigned int N; /*number of cells*/
-	unsigned int WSIZE; /*number of timesteps to store*/
-	unsigned int rule; /* defines CA evolution rule*/
-	state s;/*number of states/symbols*/
-	unsigned char rule_type; /* defines type of rule*/
-	unsigned char k;/*size of neigbourhood*/
-	unsigned int *graph; /*topology of CA*/
+	/** @brief Number of cells*/
+	unsigned int N;
+	/** @brief Number of timesteps to store*/
+	unsigned int WSIZE; 
+	/** @brief  Defines CA evolution rule*/
+	unsigned int rule; 
+	/** @brief Number of states/symbols*/
+	state s;
+	/** @brief  Defines type of rule*/
+	unsigned char rule_type; 
+	/** @brief Size of neigbourhood*/
+	unsigned char k;
+	/** @brief Topology of CA*/
+	unsigned int *graph; 
 };
 
-/*Defintion of our graph CA*/
+/** @brief A Graph Cellular Automaton structure.*/
 struct GraphCellularAutomaton_struct
 {
-	unsigned char log2s; /*number of bits per symbol*/
+	/** @brief Number of bits per symbol.*/
+	unsigned char log2s; 
+	/** @brief Size of state transition rule lookup table.*/
 	unsigned int LUT_size;
-	unsigned int size; /*number of chunks used to store the configuration*/
-	unsigned int t; /*timestep*/
-	state *ruleLUT; /*rule look-up table*/
-	chunk *ic; /*the last initial condition set*/
-	chunk *config; /*current configuration*/	
-	chunk **st_pattern;/*spatio-temporal pattern*/
+	/** @brief Number of chunks used to store the configuration.*/
+	unsigned int size; 
+	/** @brief Current timestep.*/
+	unsigned int t; 
+	/** @brief Rule look-up table.*/
+	state *ruleLUT; 
+	/** @brief The last initial condition set.*/
+	chunk *ic; 
+	/** @brief The current configuration.*/	
+	chunk *config; 
+	/** @brief Spatio-temporal pattern.*/
+	chunk **st_pattern;
+	/** @brief Cellular Automaton Parameters.*/
 	CellularAutomatonParameters *params;
 };
 
