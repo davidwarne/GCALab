@@ -1,4 +1,5 @@
-/* GCALab: An analysis tool for Graph Cellular Automata
+/*
+ * GCALab: An analysis tool for Graph Cellular Automata
  * Copyright (C) 2012  David J. Warne
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -14,18 +15,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-/* File: GCA.h
+/** 
+ * @file GCA.h
  *
- * Author: David J. Warne (david.warne@qut.edu.au)
+ * @author David J. Warne (david.warne@qut.edu.au)
  * 
- * School of Electrical Engineering and Computer Science
- * Faculty of Science and Engineering
- * Queensland University of Technology
+ * @author School of Electrical Engineering and Computer Science
+ * @author Faculty of Science and Engineering
+ * @author Queensland University of Technology
  * 
- * Date Created: 26/03/2012
- * Last Modified: 18/01/2013
+ * @date 26/03/2012 - 18/01/2013
  *
- * Descritpion: Definition of Graph Cellular Automata Libarary
+ * @brief Definition of Graph Cellular Automata Libarary
  *
  * =============================================================================
  */
@@ -42,54 +43,78 @@
 /*custom headers*/
 #include "mesh.h"
 
+/** @brief Code to flag a Threshold type CA rule.*/
 #define THRESH_RULE_TYPE 0
+/** @brief Code to flag a totalistic type CA rule.*/
 #define COUNT_RULE_TYPE 1
+/** @brief Code to flag a Wolfram Code type CA rule.*/
 #define CODE_RULE_TYPE 2 
+/** @brief Code to flag a Game-of-life type CA rule (outer-totalisitc).*/
 #define LIFE_RULE_TYPE 3
 
 #ifndef DEFAULT_RULE_TYPE
+/** @brief The rule type used by a CA if none is specified. */
 	#define DEFAULT_RULE_TYPE CODE_RULE_TYPE
 #endif 
 
+/** @brief Flag to set CA memory usage to packed mode. */
 #define PACKED_STORAGE_TYPE 0
+/** @brief Flag to set CA memory usage to unpacked mode. */
 #define UNPACKED_STORAGE_TYPE 1
 
 #ifndef DEFAULT_STORAGE_TYPE
+/** @brief The storage type used if none is specified. */
 	#define DEFAULT_STORAGE_TYPE PACKED_STORAGE_TYPE
 #endif
 
+/** @brief The maximum number of states allowed for a CA.*/
 #define S_MAX 256
 
+/** @brief The CA neighbourhood size $k$ used when none is specified.*/
 #define DEFAULT_NEIGHBOURHOOD_SIZE 3
+/** @brief The CA cell count $n$ when none is specified.*/
 #define DEFAULT_NUM_CELLS 32
 
+/** @brief Code to flag a Von-Neumann CA neighbourhood type.*/
 #define VON_NEUMANN_NEIGHBOURHOOD_TYPE 0
+/** @brief Code to flag a Moore CA neighbourhood type.*/
 #define MOORE_NEIGHBOURHOOD_TYPE 1
 
 #ifndef DEFAULT_NEIGHBOURHOOD_TYPE
+/** @brief The CA neighbourhood type used when none is specified.*/
 	#define DEFAULT_NEIGHBOURHOOD_TYPE VON_NEUMANN_NEIGHBOURHOOD_TYPE
 #endif
 
+/** @brief Code to flag a single point initial condition.*/
 #define POINT_IC_TYPE 0
+/** @brief Code to flag a random noise initial condition.*/
 #define NOISE_IC_TYPE 1
+/** @brief Code to flag a striped initial condition.*/
 #define STRIPE_IC_TYPE 2
+/** @brief Code to flag a checker board initial condition.*/
 #define CHECKER_IC_TYPE 3
+/** @brief Code to flag a user defined initial condition.*/
 #define EXPLICIT_IC_TYPE 4
 
-#define MAX_PRE_IMAGE_RETURN 1000
-
-#ifndef DEFAULT_WINDOW_SIZE
-	#define DEFAULT_WINDOW_SIZE 1200
-#endif
-
 #ifndef DEFAULT_IC_TYPE
+/** @brief The initial condition type used when none is specified.*/
 	#define DEFAULT_IC_TYPE POINT_IC_TYPE
 #endif
 
+/** @brief Limit on the number of pre-images returned by the EDEN-DET() algorithm.*/
+#define MAX_PRE_IMAGE_RETURN 1000
+
+#ifndef DEFAULT_WINDOW_SIZE
+/** @brief The number of stored time steps if none is specified.*/
+	#define DEFAULT_WINDOW_SIZE 1200
+#endif
+
+
 #ifndef CHUNK_SIZE_BITS
+    /** @brief The number of bits in a memory chunk*/
 	#define CHUNK_SIZE_BITS 32
+    /** @brief A memory chunk used for CA state storage*/
 	typedef unsigned int chunk;
-	//typedef unsigned long long chunk;
 #else
 	#if CHUNK_SIZE_BITS == 64
 		typedef unsigned long long chunk;
@@ -102,14 +127,20 @@
 	#endif
 #endif
 
+/** @brief Code to flag that cells are derived from mesh faces.*/
 #define FACE_CELL_TYPE 0
+/** @brief Code to flag that cells are derived from mesh vertices.*/
 #define VERT_CELL_TYPE 1
 #ifndef DEFAULT_CELL_TYPE
+/** @brief The cell derivation method used if none is specified.*/
 	#define DEFAULT_CELL_TYPE VERT_CELL_TYPE
 #endif
 
+/** @brief A CA cell state.*/
 typedef unsigned char state;
 
+/** @brief A Graph Cellular Automaton.*/
+/** @details A Graph Cellular Automaton.*/
 typedef struct GraphCellularAutomaton_struct GraphCellularAutomaton;
 typedef struct CellularAutomatonParameters_struct CellularAutomatonParameters; 
 
