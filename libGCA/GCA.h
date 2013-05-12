@@ -23,7 +23,7 @@
  * @brief Definitions of Graph Cellular Automata Library.
  * @details The library contains functions for the creation and analysis of Graph Cellular 
  * Automata (i.e., Cellular Automata with a topology defined by a connected graph).
- * Analysis functions include entropy calculations, parameters such as Langton's $\lambda$
+ * Analysis functions include entropy calculations, parameters such as Langton's lambda
  * and configuration transition graph metrics like the G-density.
  * @author David J. Warne (david.warne@qut.edu.au)
  * @author School of Electrical Engineering and Computer Science

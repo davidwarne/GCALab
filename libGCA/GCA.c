@@ -754,6 +754,7 @@ void ResetCA(GraphCellularAutomaton *GCA)
  * @returns The state of the \a ith cell of the GCA at the selected time step.
  *
  * @remark It must be the case that 0 <= \a t < <em>GCA->param->WSIZE</em>
+ * @warning This function assumes that \a GCA is using a PACKED cell storage type.
  */ 
 state GetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,unsigned int t)
 {
@@ -766,8 +767,15 @@ state GetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,unsigned in
 	return (GCA->st_pattern[t][q] >> r) & ((0x1 << log2s) - 1);
 }
 
-/* SetCellStatePacked(): sets the state of the ith cell in the current
- *                       configuration to the given symbol
+/**
+ * @brief Sets the state of the \a ith cell in the current configuration to the 
+ * given symbol.
+ *
+ * @param GCA A Graph Cellular Automaton.
+ * @param i The index of the cell to update the state of.
+ * @param s The new state to assign to cell \a i.
+ *
+ * @warning This function assumes that \a GCA is using a PACKED cell storage type.
  */ 
 void SetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,state s)
 {
@@ -786,8 +794,20 @@ void SetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,state s)
 	GCA->config[q] |= mask;
 }
 
-/* GetCellStatePacked_external(): gets the state of the ith cell in the given
- *                       configuration
+/**
+ * @brief Gets the state of the ith cell in the given configuration.
+ *
+ * @details This function does not index the current space-time pattern of \a GCA.
+ * Instead in only looks at \a config as though it were temporarily the current 
+ * configuration.
+ *
+ * @param GCA A Graph Cellular Automaton.
+ * @param config The configuration.
+ * @param i The index of the cell to extract the state of.
+ *
+ * @returns The state of the \a ith cell in \a config.
+ *
+ * @warning \a config must be in PACKED format.
  */ 
 state GetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsigned int i)
 {
@@ -800,8 +820,18 @@ state GetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, uns
 	return (config[q] >> r) & ((0x1 << log2s) - 1);
 }
 
-/* SetCellStatePacked_external(): sets the state of the ith cell in the current
- *                       configuration to the given symbol will not update the GCA 
+/**
+ * @brief Sets the state of the ith cell in the current configuration to the given 
+ * symbol.
+ *
+ * @details This function will not update the actual current configuration of \a GCA.
+ * Instead on the data in \a config is modified.
+ *
+ * @param GCA A Graph Cellular Automaton.
+ * @param config The configuration.
+ * @param i The index of the cell to update in \a config.
+ *
+ * @warning \a config must be in PACKED format.
  */
 void SetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsigned int i,state s)
 {
@@ -819,19 +849,37 @@ void SetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsi
 	config[q] |= mask;
 }
 
-/* GetNeighbourhood(): gets the list of cells that are in the neighbourhood of
- *                     cell i
+/**
+ * @brief Gets the list of cells that are in the neighbourhood of cell i.
  *
- * Note: 
- *   returns a reference to the GCA graph.
+ * @param GCA A Graph Cellular Automaton.
+ * @param i The index of the cell to query the neighbourhood of.
+ *
+ * @returns An pointer to an array of cell indexes which are in the neighbourhood 
+ * of cell \a i.
+ *
+ * @warning This function actually returns a reference to the portion of \a
+ * GCA graph array, modification of the returned array will corrupt the graph
+ * itself (this can of coarse be the desired effect depending on the application).
  */
 unsigned int* GetNeighbourhood(GraphCellularAutomaton * GCA,unsigned int i)
 {
 	return GCA->params->graph + i*(GCA->params->k-1);
 }
 
-/* GetNeighbourhood_config_external(): gets configuration of the given neighbourhood
+/**
+ * @brief Gets configuration of the neighbourhood of the \a ith cell for the given
+ * configuration.
  *
+ * @details This function ignores \a GCA's time-space pattern and looks only at the 
+ * states of \a config.
+ *
+ * @param GCA A Graph Cellular Automaton.
+ * @param config The configuration.
+ * @param i The index of the cell to query the neighbourhood configuration.
+ *
+ * @returns A bit string (unsigned int) encoding of the local neighbourhood 
+ * configuration.
  */
 unsigned int GetNeighbourhood_config_external(GraphCellularAutomaton * GCA,chunk* config,unsigned int i)
 {
@@ -862,8 +910,18 @@ unsigned int GetNeighbourhood_config_external(GraphCellularAutomaton * GCA,chunk
 	return nhood;
 }
 
-/* GetNeighbourhood_config(): gets configuration of the given neighbourhood
+/**
+ * @brief Gets configuration of the neighbourhood of the \a ith cell.
  *
+ * @details The current timestep is referenced by setting \a t = 0. Previous time steps
+ * are referenced by \a t > 0 (e.g., \a t == 1 indicates the previous time step).
+ *
+ * @param GCA A Graph Cellular Automaton.
+ * @param i The index of the cell to query the neighbourhood configuration.
+ * @param t The time step of interest.
+ *
+ * @returns A bit string (unsigned int) encoding of the local neighbourhood 
+ * configuration.
  */
 unsigned int GetNeighbourhood_config(GraphCellularAutomaton * GCA,unsigned int i,unsigned int t)
 {
@@ -894,11 +952,15 @@ unsigned int GetNeighbourhood_config(GraphCellularAutomaton * GCA,unsigned int i
 	return nhood;
 }
 
-/* CASimTSteps(): Evolves a Cellular Automaton up to timestep t
+/**
+ * @brief Evolves a Cellular Automaton up to time step \a t.
  *
- * Parameters:
- *      GCA - a pointer to the graph Cellular Automaton
- *      t - timestep to terminate at.
+ *
+ * @param GCA A pointer to the graph Cellular Automaton.
+ * @param t Timestep to terminate at.
+ *
+ * @remark After calling this function the current configuration of \a
+ * GCA will be that of time \a t, even if it had already evolved beyond that.
  */
 void CASimTSteps(GraphCellularAutomaton *GCA,unsigned int t)
 {
@@ -909,10 +971,12 @@ void CASimTSteps(GraphCellularAutomaton *GCA,unsigned int t)
 	while(CANextStep(GCA) != t);
 }
 
-/* CANextStep(): Evolves the Cellular Automaton 1 timestep
+/**
+ * @brief Evolves the Cellular Automaton 1 timestep.
  *
- * Parameters:
- *      GCA - a pointer to the graph Cellular Automaton
+ * @param GCA A pointer to the graph Cellular Automaton.
+ *
+ * @returns The current time step.
  */
 unsigned int CANextStep(GraphCellularAutomaton *GCA)
 {
@@ -945,14 +1009,13 @@ unsigned int CANextStep(GraphCellularAutomaton *GCA)
 	return GCA->t;
 }
 
-/* CASimToAttCyc(): Simulates the CA until an attractor cycle begins.
+/**
+ * @brief Simulates the CA until an attractor cycle begins.
  * 
- * Paramters:
- *	   GCA - graph cellular automaton
- *     t - max time step, abort if a cycle is not reached before this step
+ * @param GCA A Graph Cellular Automaton.
+ * @param t Max time step, abort if a cycle is not reached before this step.
  *
- * Returns:
- *    The first configuration to be repeated, hence the start of the cycle
+ * @returns The first configuration to be repeated, hence the start of the cycle.
  */
 chunk* CASimToAttCyc(GraphCellularAutomaton *GCA,unsigned int t)
 {
@@ -976,12 +1039,13 @@ chunk* CASimToAttCyc(GraphCellularAutomaton *GCA,unsigned int t)
 	return cycle;
 }
 
-/* IsAttCyc(): detects if the CA has entered an attractor cycle.
+/**
+ * @brief Detects if the CA has entered an attractor cycle.
  *
- * Paramaters:
- *     GCA - yes, I'll just assume you know what this is...
- * Returns:
- *     returns the length of the cycle if an attractor cycle has begun, 0 otherwise 
+ * @param GCA Yes, I'll just assume you know what this is...
+ * 
+ * @returns Returns the length of the cycle if an attractor cycle has begun, 
+ * 0 otherwise. 
  */
 unsigned char IsAttCyc(GraphCellularAutomaton *GCA)
 {
@@ -1007,15 +1071,19 @@ unsigned char IsAttCyc(GraphCellularAutomaton *GCA)
 	return 0;
 }
 
-/* CAGetPreImages(): Gets all the Pre-Images that can lead to this CAs current
- *                   configuration.
- * Paramters:
- *    GCA - graph cellular automaton
+/**
+ * @brief Gets all the Pre-Images that can lead to this CAs current configuration.
+ * 
+ * @param GCA A graph cellular automaton.
+ * @param n A reference to store the number of pre-images returned.
+ * @param flags The array of consistent local neighbourhood configurations.
  *
- * Returns:
- *    An array of configurations that are the pre-images of GCA's current configuration
- *    NULL if configuration is a Garden-of-Eden configuration
- * TODO: A bit inefficient, and we miss some valid pre-images sometimes
+ * @returns An array of configurations that are the pre-images of GCA's current 
+ * configuration.
+ *
+ * @retval NULL Configuration is a Garden-of-Eden configuration.
+ * 
+ * @todo A bit inefficient, and we miss some valid pre-images sometimes
  */
 chunk *CAGetPreImages(GraphCellularAutomaton *GCA,unsigned int* n,unsigned char* flags)
 {
@@ -1131,15 +1199,17 @@ chunk *CAGetPreImages(GraphCellularAutomaton *GCA,unsigned int* n,unsigned char*
 	return preImages;
 }
 
-/* NhElim(): Implementation of the Neighbourhood Elimination operation. Eliminates currently 
- *           inconsistent neighbourhoods for each cell.
- * Parameters:
- *      GCA - you should definitely know what this by now :)
- *      flags - an array F : F(i,j) = 0 => neighbourhood i is not possible for cell j in any 
- *              pre-image
- *      theta_i - buffer to store boundary configurations of i to j
- *      theta_j - buffer to store boudnary configurations of j to i
- *      startcell - last cell to be visited in the algorithm
+/**
+ * @brief Implementation of the Neighbourhood Elimination operation. 
+ *
+ * @details Eliminates currently inconsistent neighbourhoods for each cell.
+ * 
+ * @param GCA You should definitely know what this by now :).
+ * @param flags An array <em>F : F(i,j) = 0</em> => neighbourhood \a i is not possible 
+ * for cell \a j in any pre-image.
+ * @param theta_i Buffer to store boundary configurations of i to j.
+ * @param theta_j Buffer to store boudnary configurations of j to i.
+ * @param startcell Last cell to be visited in the algorithm.
  *     
  */
 unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *theta_i,state *theta_j,unsigned int startcell)
@@ -1209,7 +1279,6 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 			/* if theta_i not in theta_j then matching Pre-neighbourhoods 
 			 * cannot contribute Pre-Image around cell_i, likewise for 
 			 * theta_j not in theta_i 
-			 * TODO: could repace theta_i and theta_j with bit strings
 			 */
 			for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
 			{
@@ -1296,7 +1365,6 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 			/* if theta_i not in theta_j then matching Pre-neighbourhoods 
 			 * cannot contribute Pre-Image around cell_i, likewise for 
 			 * theta_j not in theta_i 
-			 * TODO: could repace theta_i and theta_j with bit strings
 			 */
 			for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
 			{
@@ -1331,14 +1399,16 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 	}/*end for cell_i*/
 }
 
-/* GetFlags(): creates an array F in N x s^k where element F(i,j) = 0 means neighbourhood
- *             i cannot occur for cell j in any pre-image.
- * Parameters:
- *     GCA - well what do you reckon?!!
+/**
+ * @brief Creates an array <em>F in N x s^k</em> where element <em>F(i,j) = 0</em> 
+ * means neighbourhood \a i cannot occur for cell \a j in any pre-image.
+ * 
+ * @param GCA Well what do you reckon?!!
  *
- * Returns:
- *     flags - an array such that flags(i,j) = 0 => neighbourhood i cannot occur for
- *             cell j in any pre-image.
+ * @returns An array such that <em>flags(i,j) = 0 =></em> neighbourhood \a i cannot 
+ * occur for cell \a j in any pre-image.
+ *
+ * @remark This function implements the EDEN-DET algorithm.
  */
 unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 {
@@ -1508,13 +1578,19 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 	return flags;
 };
 
-/* IsGOE(): determines if The current CA configuration is a 
- *          Garden-of-Eden (GOE) configuration.
+/**
+ * @brief Determines if The current CA configuration is a Garden-of-Eden (GOE) 
+ * configuration.
  * 
- * Paramters:
- *     GCA - graph cellular automaton
- * Returns:
- *     1 if the CA is at a GOE, ottherwise 0
+ * @param GCA A graph cellular automaton
+ * 
+ * @retval 1 if the CA is at a GOE
+ * @retval 0 It is very likely CA is not at a GOE.
+ *
+ * @remark The general Eden problem for graph cellular automata is NP-complete. Thus
+ * an exact solution may not exist. It is possible for this function to return 0 but 
+ * the CA is actually at a GOE (This occurs is around 15 % of Chaotic CA, but far less 
+ * for other dynamical classes).
  */
 unsigned char IsGOE(GraphCellularAutomaton *GCA)
 {
@@ -1528,7 +1604,15 @@ unsigned char IsGOE(GraphCellularAutomaton *GCA)
 	free(flags);
 	return sum == 0;
 }
-/* isValid(): tests if a configuration is a pre-image
+/**
+ * @brief Tests if a configuration is a pre-image.
+ *
+ * @parma GCA A Graph Cellular Automaton.
+ * @param config A configuration to test.
+ * @param flags An array containing valid neighbourhood configruations.
+ *
+ * @retval 1 if the CA is at a GOE
+ * @retval 0 It is very likely CA is not at a GOE.
  */
 unsigned char isValid(GraphCellularAutomaton *GCA,chunk *config,unsigned char *flags)
 {
@@ -1545,21 +1629,24 @@ unsigned char isValid(GraphCellularAutomaton *GCA,chunk *config,unsigned char *f
 	return 1;
 }
 
-/* ShannonEntropy(): Computes the Shannon entropy for the CA's spatio-temporal
- *                   pattern. 
+/**
+ * @brief Computes the Shannon entropy for the CA's spatio-temporal pattern. 
  *
- * Parameters:
- *     GCA - the Graph Cellular Automaton
- *     T - number of timesteps to approximate probabilities
- *     pr - storage for probabilities, set to NULL if not required
+ * @param GCA A Graph Cellular Automaton.
+ * @param T Number of timesteps to approximate probabilities.
+ * @param pm Memory for probablities.
+ * @param logs_pm Memory for log of probabilities.
+ * @param S_im Memory for Shannon entropy of cells.
+ * @param TFm Memory to store state equality test results.
+ * @param cm Memory to store counts.
  *
- * Note:             
- *   The Shannon entropy is defined as
- *        S = 1/N * sum_{i=1}^{N}{sum_{j=0}^{s}{-p_i^j * log_s(p_i^j)}}
- *   Where p_i^j is the probability of cell i having a state j. 
- *   To compute the probabilities the first WSIZE timesteps are omitted, the state counts are
- *   then accumulated accross the number of timesteps.  
- *   See C. Marr et. al.
+ * @returns The Average Shannon entropy for the CA's Evolution.
+ * 
+ * @note The Shannon entropy is defined as  <em>S = 1/N * sum_{i=1}^{N}{sum_{j=0}^{s}
+ * {-p_i^j * log_s(p_i^j)}}</em> Where <em>p_i^j</em> is the probability of cell \a i having a state \a j. 
+ * To compute the probabilities the first WSIZE timesteps are omitted, 
+ * the state counts are then accumulated accross the number of timesteps.  
+ * See C. Marr et. al.
  */
 float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pm,float* logs_pm,float *S_im,unsigned char *TFm,unsigned int *cm)
 {
@@ -1724,20 +1811,25 @@ float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pm,float
 	return S;
 }
 
-/* WordEntropy(): Computes the Word Entropy of the CA's spatio-temporal pattern
+/**
+ * @brief Computes the Word Entropy of the CA's spatio-temporal pattern.
  *
- * Parameters:
- *     GCA - The Graph Cellular Automaton
- *     T - the number of timesteps to approximate probabilities
- *     pr - storage for probabilities, set to NULL if not required
+ * @param GCA The Graph Cellular Automaton.
+ * @param T The number of timesteps to approximate probabilities.
+ * @param pm Memory for probablities.
+ * @param logs_pm Memory for log of probabilities.
+ * @param W_im Memory for Word entropy of cells.
+ * @param TFm Memory to store state equality test results.
+ * @param cm Memory to store counts.
+ * @param wlm Memory to store wold lengths.
  *
- * Note:             
- *   The Word entropy is defined as
- *        W = 1/N * sum_{i=1}^{N}{sum_{l=0}^{T}{-p_i^l * log_s(p_i^l)}}
- *   Where p_i^l is the probability of cell i having a constant word of length l. 
- *   To compute the probabilities the first WSIZE timesteps are omitted, 
- *   the state counts are then accumulated accross the number of timesteps.
- *   See C. Marr et. al.
+ * @returns The average Word entropy for the CA's evolution.
+ *
+ * @note The Word entropy is defined as <em>W = 1/N * sum_{i=1}^{N}{sum_{l=0}^{T}
+ * {-p_i^l * log_s(p_i^l)}}</em> Where <em>p_i^l</em> is the probability of cell \a i 
+ * having a constant word of length \a l. To compute the probabilities the first 
+ * WSIZE timesteps are omitted, the state counts are then accumulated accross the 
+ * number of timesteps. See C. Marr et. al.
  */
 float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* logs_pm,float *W_im,unsigned char *TFm, unsigned int *cm,unsigned int *wlm)
 {
