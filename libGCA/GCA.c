@@ -1815,7 +1815,7 @@ float ShannonEntropy(GraphCellularAutomaton *GCA, unsigned int T,float *pm,float
  * @brief Computes the Word Entropy of the CA's spatio-temporal pattern.
  *
  * @param GCA The Graph Cellular Automaton.
- * @param T The number of timesteps to approximate probabilities.
+ * @param T The number of time steps to approximate probabilities.
  * @param pm Memory for probablities.
  * @param logs_pm Memory for log of probabilities.
  * @param W_im Memory for Word entropy of cells.
@@ -2026,15 +2026,17 @@ float WordEntropy(GraphCellularAutomaton *GCA,unsigned int T, float *pm,float* l
 	return W;
 }
 
-/* SumCAImages(): Accumulates the counts of each state j per cell i, over all
- *                images of the given pre-Images.
+/**
+ * @brief Accumulates the counts of each state \a j per cell \a i, 
+ * over all images of the given pre-Images.
  *
- * Parameters:
- *      GCA - graph cellular automaton
- *      counts - array of length N x s to store cell counts
- *      preImages - an array of pre-Images, or an interval of pre-images
- *      n - number of pre-images, if n == 0 then pre-images contains a lower
- *          and upper range.
+ * @param GCA A Graph cellular automaton.
+ * @param counts Array of length \a N x \a s to store cell counts.
+ * @param preImages An array of pre-Images, or an interval of pre-images.
+ * @param n Number of pre-images, if \a n == 0 then pre-images contains a 
+ * lower and upper range.
+ *
+ * @returns A pointer to an \a N x \a s array, this is equal to the \a counts array.
  */
 unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk *preImages,unsigned int n)
 {
@@ -2115,10 +2117,12 @@ unsigned int *SumCAImages(GraphCellularAutomaton *GCA,unsigned int *counts,chunk
 	return counts;
 }
 
-/* ComputeExactProbs(): Computes the exact probability of a particular configuration
- *                      occuring after t = 0.
- * Parameters:
- *		GCA - graph cellular automaton
+/**
+ * @brief Computes the exact probability of a particular configuration occurring after \a t = 0.
+ * 
+ * @param GCA A graph cellular automaton.
+ *
+ * @returns An \a N x \a s array of probabilities.
  *
  */
 float *ComputeExactProbs(GraphCellularAutomaton *GCA)
@@ -2163,20 +2167,21 @@ float *ComputeExactProbs(GraphCellularAutomaton *GCA)
 	return probs;
 }
 
-/* InputEntropy(): Computes the Input Entropy of the CA over T time-steps, each
- *                 averaged over the WSIZE window.
- * Parameters:
- *		GCA - yet again that Graph CA
- *      T - number of time steps to compute input entropy over
- *      mu - address to store mean input entropy
- *      sigma - address to store input entropy variance
+/**
+ * @brief Computes the Input Entropy of the CA over T time-steps. 
+ * 
+ * @details The entropy at each time step is averaged over the WSIZE window.
+ * @param GCA Yet again that Graph CA.
+ * @param T Number of time steps to compute input entropy over.
+ * @param mu Address to store mean input entropy.
+ * @param sigma Address to store input entropy variance.
+ * @param Qm Memory to use for lookup frequencies.
+ * @param logQm Memory to use for logarithms of lookup frequencies.
+ * @param IEm Memory for the Input Entropy, this pointer is returned as output.
  *
- * Returns:
- *    pointer to array of length T, which stores the input entropy values for each
- *    time-step
+ * @return A pointer to array of length T, which stores the input entropy values for each time-step.
  *
- * Note: Input entropy is the Shannon entropy of the lookup table fequency histogram
- *       taken over WSIZE timesteps. See A. Weunsche
+ * @note Input entropy is the Shannon entropy of the lookup table fequency histogram taken over WSIZE timesteps. See A. Weunsche
  */
 float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float* sigma,unsigned int *Qm, float *logQm,float *IEm)
 {
@@ -2295,17 +2300,14 @@ float* InputEntropy(GraphCellularAutomaton *GCA,unsigned int T,float* mu, float*
 	return IE;
 }
 
-/* lambda_param(): Computes Langton's lambda parameter for the given GA rule
+/**
+ * @brief Computes Langton's lambda parameter for the given GA rule.
  *
- * Parameters:
- *		GCA - ok, I am pretty sure you shouls know what this is by now
+ * @param GCA OK, I am pretty sure you should know what this is by now.
  *
- * Returns:
- *     Langton's lambda
+ * @returns Langton's lambda.
  *
- * Note:
- *    Basically ratio of neighbourhoods that yield a non-quiesient state. 
- *    See C. Langton
+ * @note Basically ratio of neighbourhoods that yield a non-quiesient state. See C. Langton
  */
 float lambda_param(GraphCellularAutomaton *GCA)
 {
@@ -2324,17 +2326,14 @@ float lambda_param(GraphCellularAutomaton *GCA)
 	return lambda;
 }
 
-/* Z_param(): Computes Weunsche's Z parameter for the given GA rule
+/**
+ * @brief Computes Weunsche's Z parameter for the given GA rule.
  *
- * Parameters:
- *		GCA - as above
+ * @param GCA As above.
  *
- * Returns:
- *      Weunsche's Z
+ * @returns Weunsche's Z.
  *
- * Note:
- *    Defined as the probability that the next cell in the pre-image is deterministic 
- *    See A.  Weunsche
+ * @note Defined as the probability that the next cell in the pre-image is deterministic. See A.  Weunsche
  */
 float Z_param(GraphCellularAutomaton *GCA)
 {
@@ -2406,17 +2405,16 @@ float Z_param(GraphCellularAutomaton *GCA)
 	return (Z_left > Z_right) ? Z_left : Z_right;
 }
 
-/* G_density(): Computes the density of Garden-of-Eden Configurations. That is, those
- *              configurations which have no pre-image, and can only exist as initial
- *              conditions.
- * Parameters:
- *		GCA - go figure 
- *		ics - a set of configureations to test, or a range of configurations to test
- *		      if n == 0
- *		n - if ics == NULL then this is the number of random samples to use, else
- *		    it is is the number of configurations in ics
- * Returns:
- * 	   the density of Garden of eden configurations
+/**
+ * @brief Computes the density of Garden-of-Eden Configurations. 
+ *
+ * @details Garden-of-Eden configurations are those configurations which have no pre-image, and can only exist as initial conditions.
+ * 
+ * @param GCA Go figure .
+ * @param ics A set of configurations to test, or a range of configurations to test if \a n == 0.
+ * @param n If \a ics == \a NULL then this is the number of random samples to use, else it is is the number of configurations in \a ics.
+ * 
+ * @returns The density of Garden of eden configurations.
  */
 float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 {
@@ -2464,17 +2462,15 @@ float G_density(GraphCellularAutomaton *GCA,chunk* ics,unsigned int n)
 	}
 }
 
-/* AttLength(): returns the average length of attractor cycles
+/**
+ * @brief Returns the average length of attractor cycles.
  *
- * Parameters:
- *		GCA - go figure 
- *		ics - a set of configureations to test, or a range of configurations
- *		      if n == 0
- *		n - if ics == NULL then this is the number of random samples to use, else
- *		    it is is the number of configurations in ics
- *		t - max timestep to simulate before search for an attrator is halted
- * Returns: 
- * 		the average attractor cycle length
+ * @param GCA Go figure .
+ * @param ics A set of configurations to test, or a range of configurations if \a n == 0.
+ * @param n If \a ics == \a NULL then this is the number of random samples to use, else it is is the number of configurations in \a ics.
+ * @param t Max time step to simulate before search for an attractor is halted.
+ *
+ * @returns The average attractor cycle length.
  */
 float AttLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned int t)
 {
@@ -2536,17 +2532,15 @@ float AttLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned 
 	return (numcycles > 0) ? ((float)totaloflengths)/((float)numcycles): 0.0;
 }
 
-/* TransLength(): returns the average transient path length
+/**
+ * @brief Returns the average transient path length.
  *
- * Parameters:
- *		GCA - go figure 
- *		ics - a set of configureations to test, or a range of configurations
- *		      if n == 0
- *		n - if ics == NULL then this is the number of random samples to use, else
- *		    it is is the number of configurations in ics
- *		t - max timestep to simulate before search for an attractor is halted
- * Returns: 
- * 		the average transient path length
+ * @param GCA Go figure .
+ * @param ics A set of configurations to test, or a range of configurations if \a n == 0.
+ * @param n If \a ics == \a NULL then this is the number of random samples to use, else it is is the number of configurations in \a ics.
+ * @param t Max time step to simulate before search for an attractor is halted.
+ * 
+ * @returns The average transient path length.
  */
 float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigned int t)
 {
@@ -2623,15 +2617,17 @@ float TransLength(GraphCellularAutomaton *GCA,chunk *ics, unsigned int n,unsigne
 	return (numtrans > 0) ? ((float)totaloflengths)/((float)numtrans) : 0.0;
 }
 
-/*
- * PopDensity(): Calculates the "live" population density (i.e., probability that a cell is 
- *               non-quiescient) over the coarse of the CA's evolution.
- * Parameters:
- * 	   GCA - go figure...
- * 	   ics - the initial configuration, if set to NULL then a random initial configuration
- * 	         is used.
- * 	   T - the number of timesteps 
- * 	   dense - the array to store densities
+/**
+ * @brief Calculates the "live" population density.
+ *
+ * @details Calculates probability that a cell is non-quiescent over the coarse of the CA's evolution.
+ * 
+ * @param GCA Go figure...
+ * @param ics The initial configuration, if set to NULL then a random initial configuration is used.
+ * @param T The number of time steps. 
+ * @param dense The array to store densities.
+ *
+ * @returns An array of probabilities where <em>p[i]</em> is the probability that cell \a i is non-quiescent   .
  */
 float* PopDensity(GraphCellularAutomaton *GCA,chunk* ics,unsigned int T, float *dense)
 {
