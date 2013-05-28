@@ -14,20 +14,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-/* File: vectorMath.h
+/** @file vectorMath.h
  *
- * Author: David J. Warne (david.warne@qut.edu.au)
+ * @brief A few prototypes for common vector math functions.
+ *
+ * @author David J. Warne (david.warne@qut.edu.au)
+ * @author School of Electrical Engineering and Computer Science
+ * @author Faculty of Science and Engineering
+ * @author Queensland University of Technology
  * 
- * School of Electrical Engineering and Computer Science
- * Faculty of Science and Engineering
- * Queensland University of Technology
- * 
- * Date Created: 10/03/2012
- * Last Modified: 10/03/2012
+ * @date 10/03/2012 - 10/03/2012
+ * @copyright GNU Public License.
  *
- * Descritpion: A few prototypes for common vector math functions
- *
- * NOTE: at the moment not much, will be incrementally added two
+ * @note At the moment not much, will be incrementally added to.
  * =============================================================================
  */
  
@@ -38,9 +37,13 @@
 #include <math.h>
 
 /*norm types*/
+/** @brief Definition of the vector 2-norm.*/
 #define TWO_NORM 2
+/** @brief Definition of the vector 1-norm.*/
 #define ONE_NORM 1
+/** @brief Definition of the vector infinity-norm.*/
 #define INF_NORM 255
+/** @brief Definition of the Euclidean norm.*/
 #define EUCLIDEAN TWO_NORM
 
 /*function prototypes*/

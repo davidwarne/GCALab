@@ -25,10 +25,12 @@
  * Automata (i.e., Cellular Automata with a topology defined by a connected graph).
  * Analysis functions include entropy calculations, parameters such as Langton's lambda
  * and configuration transition graph metrics like the G-density.
+ *
  * @author David J. Warne (david.warne@qut.edu.au)
  * @author School of Electrical Engineering and Computer Science
  * @author Faculty of Science and Engineering
  * @author Queensland University of Technology
+ *
  * @version 0.19
  * @date 26/03/2012 - 18/01/2013
  * @copyright GNU Public License.

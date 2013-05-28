@@ -14,18 +14,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-/* File: mesh.h
+/** @file mesh.h
  *
- * Author: David J. Warne (david.warne@qut.edu.au)
- * 
- * School of Electrical Engineering and Computer Science
- * Faculty of Science and Engineering
- * Queensland University of Technology
- * 
- * Date Created: 10/03/2012
- * Last Modified: 11/08/2012
+ * @brief Definition of mesh data structures.
+ * @define This library contains functions for the creation of meshes. It has been
+ * designed primarily to facilitate the contruction of triangular meshes of a given
+ * topological genus.
  *
- * Descritpion: Definition of mesh data structures
+ * @author David J. Warne (david.warne@qut.edu.au)
+ * @author School of Electrical Engineering and Computer Science
+ * @author Faculty of Science and Engineering
+ * @author Queensland University of Technology
+ * 
+ * @date 10/03/2012 - 11/08/2012
+ * @copyright GNU Public Lincense.
  *
  * Note: My 6-month old son was sitting on my lap while I started to write this
  *       and a few times he thought he should add a comment or two 
@@ -39,49 +41,79 @@
 #include <stdio.h>
 #include <string.h>
 #include "vectorMath.h"
-
+/** @brief extra memory allocted when buffers fill up.*/
 #define REALLOC_EXTRA 1000
+/** @brief maximum number of vertices per face.*/
 #define MAX_FACE_TYPE 8
 /*for ease in coordinate indexing*/
+/** @brief defines X coordinate index.*/
 #define X 0
+/** @brief defines Y coordinate index.*/
 #define Y 1
+/** @brief defines Z coordinate index.*/
 #define Z 2
 /*return codes*/
+/** @brief Return code for successful function completion.*/
 #define SUCCESS 5
+/** @brief Return code for successful write completion.*/
 #define WRITE_SUCCESS 4
+/** @brief Return code for successful read completion.*/
 #define READ_SUCCESS 3
+/** @brief Return code for successful deletion completion.*/
 #define DELETE_SUCCESS 2
+/** @brief Return code for successful insertion completion.*/
 #define INSERT_SUCCESS 1
+/** @brief Return code for memory failure.*/
 #define OUT_OF_MEMORY 0
+/** @brief Return code for failed insertion.*/
 #define INSERT_FAILED -1
+/** @brief Return code for failed deletion.*/
 #define DELETE_FAILED -2
+/** @brief Return code for failed read.*/
 #define READ_FAILED -3
+/** @brief Return code for failed write.*/
 #define WRITE_FAILED -4
+/** @brief Return code for data corruption.*/
 #define DATA_CORRUPTION -126
+/** @brief Return code to flag un-implemented future functionality.*/
 #define NOT_IMPLEMENTED -127
 
+/** @brief Object File Format file flag.*/
 #define OFF_FORMAT 0
+/** @brief Wavefront OBJ file flag.*/
 #define OBJ_FORMAT 1
+/** @brief STereoLithography file flag.*/
 #define STL_FORMAT 2
+/** @brief Virtual Reality Modeling Language file flag.*/
 #define VRML_FORMAT 3
 
 
 
 /*My Son added the following comment*/
 /*pppppppppp ,m  b idc fv  df rvtngbhhhhhhyyyyyyyyyyyyyy7uuuuuuuuuuuuuuuuutyu7km*/
+/** @brief A list of vertices*/ 
 typedef struct vertexList_struct vertexList;
+/** @brief A list faces*/ 
 typedef struct faceList_struct faceList;
+/** @brief A mesh*/ 
 typedef struct mesh_struct mesh;
+/** @brief Return code yype.*/ 
 typedef short int r_code;
-/* vertex list data structure, all vertices are packed 
- *  e.g. the ith vertex is stored in verts[i*dim],verts[i*dim + 1],
- *  ...,verts[i*dim + dim-1]
+/** @brief The vertex list data structure.
+ *  @details All vertices are packed e.g. the ith vertex is stored in 
+ *  <em>verts[i*dim], \a verts[i*dim + 1],..., verts[i*dim + dim-1].</em>
  */
 struct vertexList_struct 
 {
+    /** @brief The number of vertices in the list.*/
 	int numVerts;
+    /** @brief The size of the list in bytes.
+     *  @note \a size = \a numVerts * \a dim .
+     */
 	int size;
+    /** @brief The dimentionality of each vertex.*/
 	int dim;
+    /** @brief Memory address of array of vertex data.*/
 	float *verts;/*numVerts x dim*/
 };
 /*Another comment by my Son*/       
@@ -89,20 +121,28 @@ struct vertexList_struct
 
 /*niiiiiiiiiiiiiii uu9*/ /*again, thanks son...*/ 
 
-/* face list data structure */
+/** @brief  The face list data structure. */
 struct faceList_struct
 {
+    /** @brief The number of faces in the list.*/
 	int numFaces;
+    /** @brief The size of the list in bytes.
+     *  @note \a size = \a numFaces * \a maxVerts .
+     */
 	int size;
+    /** @brief The largest number of vertices a single face may have. */
 	int maxVerts;
+    /** @brief Memory address of array of face data.*/
 	int *faces; /*numFaces x maxVertices*/
 	unsigned char *faceTypes;
 };
 
-/*mesh data structure*/
+/** @brief Mesh data structure*/
 struct mesh_struct
 {
+    /** @brief The vertex list*/
 	vertexList *vList;
+    /** The face list*/
 	faceList *fList;
 };
 
