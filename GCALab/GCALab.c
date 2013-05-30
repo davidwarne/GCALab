@@ -134,7 +134,7 @@ unsigned int cur_ws;
 #ifdef WITH_GRAPHICS
 /* light settings*/
 GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
-GLfloat diffuseLight[] = { 100.0f, 100.0f, 100.0f, 1.0f };
+GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 GLfloat position[] = { 20.0f, 20.0f, 20.0f, 1.0f };
 GLfloat positionMirror[] = { 20.0f, -20.0f, 20.0f, 1.0f };
 GLfloat fogCol[] = {0.4f,0.4f,0.4f,0.5f};
