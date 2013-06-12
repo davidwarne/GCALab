@@ -64,13 +64,13 @@
  
 #include "mesh.h"
 
-/* CreateVertexList(): allocates memory for a vertex list
+/** @brief Allocates memory for a vertex list.
  *
- * Parameters:
- *     size - number of vertices
- *     dim - dimension of vertices
- * Returns:
- *	   vList - a pointer to allocated vertexList struct
+ * @param size The number of vertices.
+ * @param dim The dimension of vertices.
+ *
+ * @returns A pointer to allocated vertexList struct.
+ * @retVal OUT_OF_MEMORY on failure.
  */
 vertexList * CreateVertexList(int size,int dim)
 {
@@ -95,16 +95,15 @@ vertexList * CreateVertexList(int size,int dim)
 	return vList;
 }
 
-/* InsertVertex(): adds a vertes to the given vertex list
+/** @brief Adds a vertes to the given vertex list.
  *
- * Parameters:
- *     vList - pointer to vertex list to insert into
- *     v - vertex to be inserted
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param vList A pointer to vertex list to insert into.
+ * @param v The vertex to be inserted.
+ * 
+ * @retVal INSERT_SUCCESS Successful insertion.
+ * @retVal INSERT_FAILED Indicates a failure error code.
  *
- * Pre-conditions:
- *     length of v == vList->dim
+ * @note length of \a v == <em>vList->dim</em>.
  */
 r_code InsertVertex(vertexList *vList,float *v)
 {
@@ -132,15 +131,15 @@ r_code InsertVertex(vertexList *vList,float *v)
 	return INSERT_SUCCESS;
 }
 
-/* DeleteVertex(): removes a vertex from the list, closes space in memory
+/** @brief Removes a vertex from the list, closes space in memory.
  *
- * Parameters:
- *     vList - the vertex list to delete from
- *	   i - index of the vertex to be deleted
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param vList  The vertex list to delete from.
+ * @param i Index of the vertex to be deleted.
+ * 
+ * @retVal DELETE_FAILED Successful insertion.
+ * @retVal DELETE_SUCCESS Indicates a failure error code.
  *
- * Note: User should be careful using this operation if the vertex list is
+ * @note User should be careful using this operation if the vertex list is
  *       index into by an edge list.
  */
 r_code DeleteVertex(vertexList *vList,int i)
@@ -166,16 +165,17 @@ r_code DeleteVertex(vertexList *vList,int i)
 	}
 }
 
-/* GetVertex_ptr: Returns the memory address of the ith vertex
+/** @brief Returns the memory address of the ith vertex.
  *
- * Parameters:
- *     vList - the vertex list
- *	   i - index of the vertex 
- * Returns:
- *     pointer to start of the ith vertex,NULL if it does not exist
+ * @param vList The vertex list.
+ * @param i The index of the vertex. 
+ * 
+ * @returns A pointer to start of the ith vertex.
  *
- * Note: editing the result of this function will change values in the vertex list
- *       if a copy is desired use GetVertex_cp()
+ * @retVal NULL if it does not exist.
+ *
+ * @note editing the result of this function will change values in the vertex list
+ *       if a copy is desired use GetVertex_cp
  */
 float * GetVertex_ptr(vertexList *vList,int i)
 {
@@ -189,13 +189,14 @@ float * GetVertex_ptr(vertexList *vList,int i)
 	}
 }
 
-/* GetVertex_cp(): makes a copy of the ith vertex in the list
+/** @brief Makes a copy of the ith vertex in the list.
  *
- * Parameters
- *     vList - the vertex list
- *	   i - index of the vertex
-  * Returns:
- *     pointer to copy of the ith vertex,NULL if it does not exist
+ * @param vList The vertex list.
+ * @param i The index of the vertex.
+ *
+ * @returns A pointer to copy of the ith vertex.
+ * @retVal NULL if it does not exist.
+ * @retVal OUT_OF_MEMORY If new memory cannot be allocated for the vertex.
  */
 float * GetVertex_cp(vertexList *vList,int i)
 {
@@ -221,13 +222,13 @@ float * GetVertex_cp(vertexList *vList,int i)
 	}
 }
 
-/* CreateFaceList(): allocates memeory for face list
+/** @brief Allocates memory for face list.
  *
- * Parameters:
- *     size - number of faces
- *     maxVerts - largest number of vertices allowed per face
- * Returns:
- *     pointer to allocated memory for the face list
+ * @param size The number of faces.
+ * @param maxVerts The largest number of vertices allowed per face.
+ * 
+ * @returns pointer to allocated memory for the face list.
+ * @retVal OUT_OF_MEMORY if insufficient memory for creation.
  */
 faceList * CreateFaceList(int size,int maxVerts)
 {
@@ -258,13 +259,14 @@ faceList * CreateFaceList(int size,int maxVerts)
 	return fList;
 }
 
-/* InsertFace(): adds face to the face list
+/** @brief Adds face to the face list.
  *
- * Parameter:
- *     fList - the face list to insert into
- *     face - the face to be inserted
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param fList The face list to insert into.
+ * @param face The face to be inserted.
+ * @param type The Face element type.
+ * 
+ * @retVal INSERT_SUCCESS On success.
+ * @retVal INSERT_FAILED On failure.
  */
 r_code InsertFace(faceList *fList,int *face,unsigned char type)
 {
@@ -300,13 +302,13 @@ r_code InsertFace(faceList *fList,int *face,unsigned char type)
 	return INSERT_SUCCESS;
 }
 
-/* DeleteFace(): deletes a face from the face list
+/** @brief Deletes a face from the face list.
  *
- * Parameters:
- *     fList - the face list to delete from
- *     i - the index of the face to be deleted
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.  
+ * @param fList The face list to delete from.
+ * @param i The index of the face to be deleted.
+ * 
+ * @retVal DELETE_SUCCESS on success.
+ * @retVal DELETE_FAILED  on failure.  
  */
 r_code DeleteFace(faceList *fList, int i)
 {
@@ -337,16 +339,16 @@ r_code DeleteFace(faceList *fList, int i)
 	}
 }
 
-/* GetFace_ptr: Returns the memory address of the ith face
+/** @brief Returns the memory address of the ith face.
  *
- * Parameters:
- *     fList - the face list
- *	   i - index of the face 
- * Returns:
- *     pointer to start of the ith face,NULL if it does not exist
+ * @param fList The face list.
+ * @param i The index of the face. 
+ * 
+ * @returns The pointer to start of the ith face.
+ * @retVal NULL if it does not exist.
  *
- * Note: editing the result of this function will change values in the face list
- *       if a copy is desired use GetFace_cp()
+ * @note editing the result of this function will change values in the face list
+ *       if a copy is desired use GetFace_cp .
  */
 int * GetFace_ptr(faceList *fList,int i)
 {
@@ -360,13 +362,14 @@ int * GetFace_ptr(faceList *fList,int i)
 	}
 }
 
-/* GetFace_ptr: Returns a copy of the ith face
+/** @brief Returns a copy of the ith face.
  *
- * Parameters:
- *     fList - the face list
- *	   i - index of the face 
- * Returns:
- *     pointer to start of the ith face,NULL if it does not exist
+ * @param fList The face list.
+ * @param i The index of the face. 
+ *
+ * @returns The pointer to start of the ith face.
+ * @retVal NULL if it does not exist.
+ * @retVal OUT_OF_MEMORY an error occurred in copy memory allocation.
  *
  */
 int * GetFace_cp(faceList *fList,int i)
@@ -391,12 +394,17 @@ int * GetFace_cp(faceList *fList,int i)
 	}
 }
 
-/* FaceMidPoint(): Calculates the midpoint of the ith face int the fList
+/** @brief Calculates the midpoint of the ith face int the fList.
  *
- * Parameters:
- *     fList - the face list
- *	   i - index of the face 
+ * @param fList The face list.
+ * @param i The index of the face .
+ * @param vList The list of face vertices.
  *
+ * @returns A pointer to a the mid-point (geometric centre) of the face.
+ * @retVal NULL If an error occurred in calculation.
+ * @retVal OUT_OF_MEMORY If an error occurred in memory allocation.
+ *
+ * 
  */
 float * FaceMidPoint(faceList *fList, int i,vertexList *vList)
 {
@@ -437,15 +445,13 @@ float * FaceMidPoint(faceList *fList, int i,vertexList *vList)
 	return mean;
 }
 
-/* FaceArea(): calculates the face area of the ith face in the face list
+/** @brief Calculates the face area of the ith face in the face list.
  *
- * Parameters:
- *     fList - face list
- *     i - index of face of interest
- *     vList - list of vertices indexed by eList
+ * @param fList The face list.
+ * @param i The index of face of interest.
+ * @param vList The list of vertices indexed by eList.
  *
- * Returns:
- *      area of the face
+ * @retruns The area of the face.
  */
 float FaceArea(faceList *fList, int i,vertexList *vList)
 {
