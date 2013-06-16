@@ -317,10 +317,15 @@ float *Normal_f(float *x, float *y,float *z)
 	float *v0;
 	float *v1;
 	float *normal;
+	float mag;
 	v0 = Diff_f(y,x,3);
 	v1 = Diff_f(z,x,3);
 	
-	normal = Cross_f(v0,v1); 
+	normal = Cross_f(v0,v1);
+	mag = Norm_f(normal,3,TWO_NORM);
+	normal[0] /= mag;
+	normal[1] /= mag;
+	normal[2] /= mag;
 	free(v0);
 	free(v1);
 	return normal;

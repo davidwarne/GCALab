@@ -135,8 +135,8 @@ unsigned int cur_ws;
 /* light settings*/
 GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
 GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-GLfloat position[] = { 20.0f, 20.0f, 20.0f, 1.0f };
-GLfloat positionMirror[] = { 20.0f, -20.0f, 20.0f, 1.0f };
+GLfloat position[] = { 10.0f, 10.0f, 10.0f, 1.0f };
+GLfloat positionMirror[] = { 10.0f, -10.0f, 10.0f, 1.0f };
 GLfloat fogCol[] = {0.4f,0.4f,0.4f,0.5f};
 GLUquadric* quad;
 float translateX,translateY,zoom;
@@ -150,6 +150,7 @@ float cellColf[8][3] = {{0.2,0.2,0.2},{1,1,1},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1
 float lutColf[16][3] = {{0,0,0},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{1,1,0},{0,1,1},{1,1,1},
 						{1,0.5,0},{0.0,1,0.5},{0.5,0,1},{1,0.5,1},{1,1,0.5},{0.5,1,1},{0.5,0.5,0.5}};
 unsigned char lutColmode;
+unsigned char showMesh;
 unsigned char GCALab_confedit_mode;
 #endif
 char stateInitials[6] = {'I','R','P','Q','E'};
@@ -236,6 +237,7 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 	cur_gca = 0;
 	cur_res = 0;
 	lutColmode = 0;
+	showMesh = 0;
 	moving = GCALAB_GRAPHICS_INTERACTION_NONE;	
 	glutMainLoop();
 #else
@@ -1554,7 +1556,24 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 		free(n);
 	}
 	glEnd();
-
+	
+	if (showMesh)
+	{
+    	glDisable(GL_LIGHTING);
+		glBegin(GL_LINES);
+		glColor4f(0.0,0.0,0.0,1.0);
+		for (i=0;i<m->fList->numFaces;i++)
+		{
+			glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
+			glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
+			glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
+			glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+			glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
+			glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
+		}
+		glEnd();
+    	glEnable(GL_LIGHTING);
+	}
 }
 
 /* GCALab_Graphics_DrawBBox(): draws a bounding box
@@ -1752,6 +1771,9 @@ void GCALab_Graphics_KeyPressed (unsigned char key, int x, int y)
 			break;
 		case 'p':
 			GCALab_confedit_mode = !GCALab_confedit_mode;
+			break;
+		case 'm':
+			showMesh = !showMesh;
 			break;
 	}
 }
