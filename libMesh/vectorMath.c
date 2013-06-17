@@ -45,23 +45,33 @@
 
 #include "vectorMath.h"
 
-/* Add_f(): computes the vector addition of vectors x,y (32-bit floats) in R^n
+/** @brief Computes the vector addition of vectors x,y (32-bit floats) in R^n
  *
- * Parameters:
- *     x,y - vectors to compute x + y
- *     n - dimension of x and y
- * Returns:
- *     z - the sum of x and y
+ * @param x Fist vector operand.
+ * @param y Second vector operand.
+ * @param z_out user supplied pointer for results
+ * @param n Dimension of operands.
+ *
+ * @returns pointer to vector which is the element wise sum of \a x and \a y.
+ * @note If \a z_out != NULL then the returned point is equal to \a z_out. Otherwise
+ * new memory is allocted.
  */
-float * Add_f(float *x, float *y, int n)
+float * Add_f(float *x, float *y,float* z_out,int n)
 {
 	float * z;
 	int i;
 	
-	if (!(z = (float *)malloc(n*sizeof(float))))
-	{
-		return NULL;
-	}
+    if (z_out != NULL)
+    {
+        z = z_out;
+    }
+    else
+    {
+	    if (!(z = (float *)malloc(n*sizeof(float))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	for (i=0;i<n;i++)
 	{
@@ -70,24 +80,34 @@ float * Add_f(float *x, float *y, int n)
 	return z;
 }
 
-/* Diff_f(): computes the vector difference of vectors x,y (32-bit floats) in R^n
+/** @brief Computes the vector difference of vectors x,y (32-bit floats) in R^n
  *
- * Parameters:
- *     x,y - vectors to compute x - y
- *     n - dimension of x and y
- * Returns:
- *     z - the difference of x and y
+ * @param x Fist vector operand.
+ * @param y Second vector operand.
+ * @param z_out user supplied pointer for results
+ * @param n Dimension of operands.
+ *
+ * @returns pointer to vector which is the element wise differnce of \a x and \a y.
+ * @note If \a z_out != NULL then the returned point is equal to \a z_out. Otherwise
+ * new memory is allocted.
  */
-float * Diff_f(float *x, float *y, int n)
+float * Diff_f(float *x, float *y, float* z_out,int n)
 {
 	float * z;
 	int i;
 	
-	if (!(z = (float *)malloc(n*sizeof(float))))
-	{
-		return NULL;
+    if (z_out != NULL)
+    {
+        z = z_out;
+    }
+    else
+    {
+	    if (!(z = (float *)malloc(n*sizeof(float))))
+	    {
+		    return NULL;
+	    }
 	}
-	
+
 	for (i=0;i<n;i++)
 	{
 		z[i] = x[i] - y[i];
@@ -95,25 +115,34 @@ float * Diff_f(float *x, float *y, int n)
 	return z;
 }
 
-/* MidPoint_f(): calculates the midpoint of two single vectors (32-bit float) 
- *               of dimension n
- * Parameters:
- *     x,y - two vectors to compute midpoint of
- *     n - dimension of x and y
- * Returns:
- *     m - pointer to memory containin the midpoint
- * Pre-condition:
- *	   n must be valid for both x and y
+/** @brief Calculates the midpoint of two single vectors (32-bit float) 
+ *  of dimension n.
+ *
+ * @param x Fist vector operand.
+ * @param y Second vector operand.
+ * @param m_out user supplied pointer for results
+ * @param n Dimension of operands.
+ *
+ * @returns pointer to vector which is the midpoint.
+ * @note If \a m_out != NULL then the returned point is equal to \a m_out. Otherwise
+ * new memory is allocted.
  */
-float *Midpoint_f(float *x, float *y, int n)
+float *Midpoint_f(float *x, float *y, float *m_out, int n)
 {
 	float *m;
 	int i;
 	
-	if (!(m = (float *)malloc(n*sizeof(float))))
-	{
-		return NULL;
-	}
+    if (m_out != NULL)
+    {
+        m = m_out;
+    }
+    else
+    {
+	    if (!(m = (float *)malloc(n*sizeof(float))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	for (i=0;i<n;i++)
 	{
@@ -122,25 +151,32 @@ float *Midpoint_f(float *x, float *y, int n)
 	return m;
 }
 
-/* Mean_f(): computes the mean of num vectors in R^n
+/** @brief Computes the mean of num vectors in R^n.
  *
- * Parameters:
- *     num - number of vectors to average
- *     vList - list of vectors
- *     n - dimension of the vectors
- * Returns:
- *     the mean vector
- * Pre-condition:
- *     num must be equal to the number of vectors in the variab;e argument list
+ * @param num The number of vectors to average.
+ * @param vList A list of vectors.
+ * @param m_out User supplied pointer for results.
+ * @param n The dimension of the vectors.
+ * 
+ * @returns A pointer to the mean vector.
+ * @note If \a m_out != NULL then the returned point is equal to \a m_out. Otherwise
+ * new memory is allocted.
  */
-float *Mean_f(int num,float * vList, int n)
+float *Mean_f(int num,float * vList, float* m_out, int n)
 {
 	float *m,*vec;
 	int i,j;
-	if (!(m = (float *)malloc(n*sizeof(float))))
-	{
-		return NULL;
-	}
+    if (m_out != NULL)
+    {
+        m = m_out;
+    }
+    else
+    {
+	    if (!(m = (float *)malloc(n*sizeof(float))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	for (j=0;j<n;j++)
 	{
@@ -164,19 +200,16 @@ float *Mean_f(int num,float * vList, int n)
 	return m;
 }
 
-/* Norm_f(): calculates the norm of a vector (32-bit float) of dimension n
+/** @brief Calculates the norm of a vector (32-bit float) of dimension n.
  * 
- * Parameters:
- *     x - vector to compute norm of
- *     n - dimension of x
- *     norm - the type of norm to take support 1-norm, 2-norm or infinity-norm
- * Returns:
- *     n - the norm of x
- * Pre-condition:
- *	   nrm must be valid for x
- * Note: 
- *     x and y are interpreted as column vectors for the purpose of the 1-norm
- *     or the infinity-norm
+ * @param x Vector to compute norm of.
+ * @param n Dimension of x.
+ * @param norm The type of norm to take support 1-norm, 2-norm or infinity-norm.
+ *
+ * @returns The norm of x.
+ *
+ * @note \a x and \a y are interpreted as column vectors for the purpose of the 1-norm
+ * or the infinity-norm
  */
 float Norm_f(float *x,int n,unsigned char norm)
 {
@@ -216,41 +249,41 @@ float Norm_f(float *x,int n,unsigned char norm)
 	return nrm;
 }
 
-/* NormDiff_f(): calculates the norm of the differenc of two vectors (32-bit float)
- *               of dimension n
- * Parameters:
- *     x,y - two vectors to compute norm diff
- *     n - dimension of x and y
- *     norm - the type of norm to take support 1-norm, 2-norm or infinity-norm
- * Returns:
- *     nd - the norm of the difference
- * Pre-condition:
- *	   n must be valid for both x and y
- * Note: 
- *     x and y are interpreted as column vectors for the purpose of the 1-norm
- *     or the infinity-norm
+/** @brief Calculates the norm of the difference of two vectors (32-bit float)
+ *  of dimension n
+ *
+ * @param x First vector operand. 
+ * @param y Second vector operand.
+ * @param tmp User supplied memory to avoid repeated mallocs.
+ * @param n Dimension of \a x and \a y.
+ * @param norm The type of norm to take support 1-norm, 2-norm or infinity-norm.
+ *
+ * @returns The norm of the difference.
+ * @note \a x and \a y are interpreted as column vectors for the purpose of the 1-norm
+ * or the infinity-norm.
+ * @note If \a tmp == NULL the function will still operate correctly, but will perform
+ * internal mallocs.
  */
-float NormDiff_f(float *x, float *y,int n,unsigned char norm)
+float NormDiff_f(float *x, float *y,float* tmp,int n,unsigned char norm)
 {
 	float nrm, *z;
 	int i;
 	
+    z = tmp;
 	nrm = 0.0;
-	z = Diff_f(x,y,n);
+	z = Diff_f(x,y,z,n);
 	nrm = Norm_f(z,n,norm);
 	free(z);
 	return nrm;
 }
 
-/* Dot_f(): vector inner product in R^n
+/** @brief Vector inner product in R^n
  *
- * Parameters:
- *     x,y - two vectors in R^n
- *     n - dimension of x and y
- * Return:
- *     vector inner product (a scalar)
- * Pre-condition:
- *	   n must be valid for both x and y
+ * @param x First vector operand.
+ * @param y Second vectot operand.
+ * @param n Dimension of \a x and \a y. 
+ * 
+ * @returns The vector inner product (a scalar).
  */
 float Dot_f(float *x, float *y, int n)
 {
@@ -264,22 +297,32 @@ float Dot_f(float *x, float *y, int n)
 	return d;
 }
 
-/* Cross_f(): vector cross product in R^3
+/** @brief The vector cross product in R^3
  *
- * Parameters:
- *     x,y - two vectors in R^3
- * Return:
- *     vector cross product (a vector)
- * Pre-condition:
- *	   both x and y must be in R^3
+ * @param x The first vector operand in R^3.
+ * @param y The second vector operand in R^3.
+ * @param z_out User supplied memory for result.
+ *
+ * @returns vector cross product (a vector).
+ * @remark Both x and y must be in R^3.
+ * @note If \a z_out != NULL then the returned point is equal to \a z_out. Otherwise
+ * new memory is allocted.
  */
-float *Cross_f(float *x, float *y)
+float *Cross_f(float *x, float *y,float *z_out)
 {
 	float *z;
-	if (!(z = (float *)malloc(3*sizeof(float))))
-	{
-		return NULL;
-	}
+
+    if (z_out != NULL)
+    {
+        z = z_out;
+    }
+    else
+    {
+	    if (!(z = (float *)malloc(3*sizeof(float))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	z[0] = x[1]*y[2] - x[2]*y[1];
 	z[1] = x[2]*y[0] - x[0]*y[2];
@@ -288,14 +331,14 @@ float *Cross_f(float *x, float *y)
 	return z;
 }
 
-/* MagCross_f(): magnitude vector cross product in R^3
+/** @brief Computes magnitude vector cross product in R^3.
  *
- * Parameters:
- *     x,y - two vectors in R^3
- * Return:
- *     magnitude of vector cross product (a scalar)
- * Pre-condition:
- *	   both x and y must be in R^3
+ * @param x The first vector operand in R^3.
+ * @param y The second vector operand in R^3.
+ * 
+ * @returns The magnitude of vector cross product (a scalar).
+ * @remark Both x and y must be in R^3.
+ * @remark The magnitude is equal to the area of the parallelogram subtended by \a x and \a y.
  */
 float MagCross_f(float *x, float *y)
 {
@@ -307,9 +350,9 @@ float MagCross_f(float *x, float *y)
 	return sqrt(z0*z0+z1*z1+z2*z2);
 }
 
-/* Normal_f(): computes the normal to the plane defined by the three given poitns
+/** @brief computes the unit normal to the plane defined by the three given points.
  *
- * Parameters:
+ * 
  *     x,y,z - vectors in R^3
  */
 float *Normal_f(float *x, float *y,float *z)
