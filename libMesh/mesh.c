@@ -475,15 +475,15 @@ float FaceArea(faceList *fList, int i,vertexList *vList)
 	return area*0.5;
 }
 
-/* CreateMesh(): allocates memory for a Polygonal mesh
+/** @brief allocates memory for a Polygonal mesh
  *
- * Parameters:
- *     numVerts - number of vertices to allocate for
- *     dim - dimension of vertices
- *     numFaces - number of Faces to allocate for
- *     maxVerts - largest number of vertices any face may have
- * Returns:
- *     m - a pointer to mesh structure, NULL if an error occurred
+ * @param numVerts The number of vertices to allocate for.
+ * @param dim The dimension of vertices.
+ * @param numFaces The number of Faces to allocate for.
+ * @param maxVerts The largest number of vertices any face may have.
+ * 
+ * @returns A pointer to mesh structure.
+ * @retVal NULL If an error occurred.
  */
 mesh * CreateMesh(int numVerts,int dim,int numFaces, int maxVerts)
 {
@@ -508,12 +508,13 @@ mesh * CreateMesh(int numVerts,int dim,int numFaces, int maxVerts)
 	return m;
 }
 
-/* CopyMesh(): Creates a new mesh structure which is an exact copy for the 
- *             given mesh m
- * Parameter:
- *     m - mesh to copy
- * Returns:
- *    m_cp - mesh identical to m
+/** @brief Creates a new mesh structure which is an exact copy for the 
+ *  given mesh m.
+ * 
+ * @param m The mesh to copy.
+ * 
+ * @returns A pointer to a mesh identical to \a m.
+ * @reVal NULL If an error occurred.
  */
 mesh * CopyMesh(mesh *m)
 {
@@ -543,13 +544,13 @@ mesh * CopyMesh(mesh *m)
 	return m_cp;
 }
 
-/* CreateDual(): Creates the Geometric dual of the given mesh. That is, faces 
- *               become vertices and vertices become faces
- * Parameters:
- *     m - original mesh
+/** @bried Creates the Geometric dual of the given mesh. 
+ *  @details The Geometruc dual is constructed by converting faces 
+ *  to vertices and vertices to faces.
+ * 
+ * @param m The original mesh.
  *
- * Returns:
- *    m_dual - geometric dual of m
+ * @returns The pointer to a mesh which is the geometric dual of \a m.
  */
 mesh * CreateDual(mesh *m)
 {
@@ -649,13 +650,15 @@ mesh * CreateDual(mesh *m)
 	return mdual;
 }
 
-/* SubDivideFaces(): subdivides each face by constructing a new face from the
- *                   midpoints of the faces edges
+/** @brief Subdivides each face by constructing a new face from the
+ *  midpoints of the faces edges
  *
- * Parameters:
- *     m - original mesh
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param m The original mesh.
+ *
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on error.
+ *
+ * @todo Profile this operation and optimise.
  */
 r_code SubDivideFaces(mesh *m)
 {
@@ -716,8 +719,16 @@ r_code SubDivideFaces(mesh *m)
 	return rc;
 }
 
-/* RemoveDuplicateVertices(): deletes any duplicate vertices int he mesh and 
- *                            fixes any references from faces
+/** @brief Deletes any duplicate vertices int he mesh and 
+ *  fixes any references from faces.
+ *
+ *  @param m The mesh to tidy up.
+ *
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on error.
+ *
+ * @note This function modifies the mesh \a m.
+ * @todo Profile this operation and optimise.
  */
 r_code RemoveDuplicateVertices(mesh *m)
 {
@@ -804,10 +815,12 @@ r_code RemoveDuplicateVertices(mesh *m)
 }
 
 
-/* SurfaceArea(): Calculates the surface area of the given mesh. Simply the sum 
- *                the Face surface areas
- * Parameters:
- *      m - the mesh to compute the are of
+/** @brief Calculates the surface area of the given mesh. 
+ * @details Simply the sum the Face surface areas.
+ *
+ * @param m The mesh to compute the area of.
+ *
+ * @returns The area of the surface mesh \a m.
  */
 float SurfaceArea(mesh* m)
 {
@@ -823,10 +836,11 @@ float SurfaceArea(mesh* m)
 	return surfArea;
 }
 
-/* GeometricCentre(): Calculates the geometric centre of the mesh
+/** @brief Calculates the geometric centre of the mesh.
  *
- * Parameters:
- *      m - mesh to get centre of
+ * @param m The mesh to get centre of.
+ *
+ * @returns a pointer to the point representing the geometric center.
  */
 float * GeometricCentre(mesh* m)
 {
@@ -837,12 +851,11 @@ float * GeometricCentre(mesh* m)
 	return geoCentre;
 }
 
-/* CreateIcosahedron(): does what is says it does...
+/** @brief Returns a mesh equivalent to a icosahedron.
  *
- * Parameters:
- *      none...
- * Returns:
- *    a mesh that resembles an icosahedron
+ * @returns A mesh that resembles an icosahedron.
+ *
+ * @todo The vertices and edges are hard coded... This can be improved.
  */
 mesh * CreateIcosahedron(void)
 {
@@ -920,12 +933,11 @@ mesh * CreateIcosahedron(void)
 	return m;
 }
 
-/* CreateTorus(): does what is says it does...
+/** @brief Creates a mesh equivalent to a Torus.
  *
- * Parameters:
- *      none...
- * Returns:
- *    a mesh that resembles an torus
+ * @returns A mesh that resembles an torus.
+ *
+ * @todo The vertices and edges are hard coded... This can be improved.
  */
 mesh * CreateTorus(void)
 {
@@ -1179,12 +1191,11 @@ mesh * CreateTorus(void)
 	return m;	
 }
 
-/* CreateDoubleTorus(): does what is says it does...
+/** @brief Creates a mesh equivalent to a double torus.
  *
- * Parameters:
- *      none...
- * Returns:
- *    a mesh that resembles a double torus
+ * @returns A mesh that resembles a double torus.
+ *
+ * @todo The vertices and edges are hard coded... This can be improved.
  */
 mesh * CreateDoubleTorus(void)
 {
@@ -1443,16 +1454,17 @@ mesh * CreateDoubleTorus(void)
 	return m;
 }
 
-/* CreateMeshTopology(): Creates a mesh that with at most numFaces Faces, 
- *                   that is of the algebraic topology class if the 
- *                   given genus.
- * Parameters:
- *      numFaces - the minimum number of faces
- *      genus - the genus of the topology (i.e., number of holes)
- * Returns:
- *      a mesh of the given genus
- * NOTE: For now, only genus-0, genus-1, genus-2 are supported
- * TODO: generalise to genus-n
+/** @brief Create a mesh of topological genus \a n.
+ *  @details Creates a mesh that with at least numFaces Faces, 
+ *  that is of the algebraic topology class if the given genus.
+ *
+ * @param numFaces The minimum number of faces.
+ * @param genus The genus of the topology (i.e., number of holes).
+ * 
+ * @returns A mesh of the given genus.
+ *
+ * @note For now, only genus-0, genus-1, genus-2 are supported
+ * @todo I would really like to  generalise this to genus-n, but I need to think about it.
  */
 mesh * CreateMeshTopology(int numFaces,int genus)
 {
@@ -1488,14 +1500,15 @@ mesh * CreateMeshTopology(int numFaces,int genus)
 	return m;
 }
 
-/* LoadMesh(): reads a mesh from given format
+/** @brief Reads a mesh from given format.
  *
- * Parameters: 
- *     filename - the name of input file
- *     format - the format of the input file
+ * @param filename The name of input file.
+ * @param format The format of the input file.
  *
- * Returns:
- *     pointer to a valid mesh if successful, otherwise NULL.
+ * @returns A pointer to a valid mesh if successful.
+ * @retVal NULL If and error occurred.
+ *
+ * @note This is basically a wrapper for fixed format readers.
  */
 mesh * LoadMesh(char *filename,unsigned char format)
 {
@@ -1524,14 +1537,16 @@ mesh * LoadMesh(char *filename,unsigned char format)
 	return m;
 }
 
-/* SaveMesh(): writes mesh to given format
+/** @brief writes mesh to given format.
  *
- * Parameters: 
- *     filename - the name of output file
- *     format - the format of the output file
+ * @param filename The name of output file.
+ * @param m The mesh to write to file.
+ * @param format The format of the output file.
  *
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note This is basically a wrapper for fixed format writers.
  */
 r_code SaveMesh(char *filename, mesh *m,unsigned char format)
 {
@@ -1553,13 +1568,15 @@ r_code SaveMesh(char *filename, mesh *m,unsigned char format)
 	}
 }
 
-/* WriteOFF(): writes mesh in *.off format
+/** @brief writes mesh in *.off format.
  *
- * Parameters:
- *     filename -  then name of the .off file
- *     m - the mesh structure to write to file
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param filename The name of the .off file.
+ * @param m The mesh structure to write to file.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note In general this function should not be required to be called directly.
  */
 r_code WriteOFF(char *filename,mesh *m)
 {
@@ -1605,13 +1622,15 @@ r_code WriteOFF(char *filename,mesh *m)
 	return WRITE_SUCCESS;
 }
 
-/* WriteOBJ(): writes mesh in *.obj format
+/** @brief writes mesh in *.obj format.
  *
- * Parameters:
- *     filename -  then name of the .obj file
- *     m - the mesh structure to write to file
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param filename The name of the .obj file.
+ * @param m The mesh structure to write to file.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note In general this function should not be required to be called directly.
  */
 r_code WriteOBJ(char *filename,mesh *m)
 {
@@ -1652,13 +1671,15 @@ r_code WriteOBJ(char *filename,mesh *m)
 	return WRITE_SUCCESS;
 }
 
-/* WriteSTL(): writes mesh in *.stl format
+/** @brief writes mesh in *.stl format.
  *
- * Parameters:
- *     filename -  then name of the .stl file
- *     m - the mesh structure to write to file
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param filename The name of the .stl file.
+ * @param m The mesh structure to write to file.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note In general this function should not be required to be called directly.
  */
 r_code WriteSTL(char *filename,mesh *m)
 {
@@ -1709,28 +1730,30 @@ r_code WriteSTL(char *filename,mesh *m)
 	return WRITE_SUCCESS;
 }
 
-/* WriteVRML(): writes mesh in *.vrml format
+/** @brief writes mesh in *.vrml format.
  *
- * Parameters:
- *     filename -  then name of the .vrml file
- *     m - the mesh structure to write to file
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate error code.
+ * @param filename The name of the .vrml file.
+ * @param m The mesh structure to write to file.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note In general this function should not be required to be called directly.
  */
 r_code WriteVRML(char *filename,mesh *m)
 {
 	return NOT_IMPLEMENTED;
 }
 
-/* ReadOFF(): imports a mesh from a .off file... 
+/** @brief Imports a mesh from a  *.off file.
  *
- * Parameters:
- *     filename - I hope you are intelligent enought to work
- *                this one out
- *     m - a pointer to store the address of the new mesh
- * Returns:
- *     r_code - > 0 on success and <= 0 on fail with appropriate
- *     error code. Like most functions in this library...
+ * @param filename The name of the .off file.
+ * @param m A pointer to store the address of the new mesh.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note In general this function should not be required to be called directly.
  */
 r_code ReadOFF(char *filename, mesh **m)
 {
@@ -1812,27 +1835,60 @@ r_code ReadOFF(char *filename, mesh **m)
 }
 
 
+/** @brief Imports a mesh from a  *.obj file.
+ *
+ * @param filename The name of the .obj file.
+ * @param m A pointer to store the address of the new mesh.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note This funtion is not yet supported.
+ * @note In general this function should not be required to be called directly.
+ */
 r_code ReadOBJ(char *filename,mesh **m)
 {
 	return NOT_IMPLEMENTED;
 }
 
+/** @brief Imports a mesh from a  *.stl file.
+ *
+ * @param filename The name of the .stl file.
+ * @param m A pointer to store the address of the new mesh.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note This funtion is not yet supported.
+ * @note In general this function should not be required to be called directly.
+ */
 r_code ReadSTL(char *filename,mesh **m)
 {
 	return NOT_IMPLEMENTED;
 }
 
+/** @brief Imports a mesh from a  *.vrml file.
+ *
+ * @param filename The name of the .vrml file.
+ * @param m A pointer to store the address of the new mesh.
+ * 
+ * @retVal rc>0 on success.
+ * @retVal rc<=0 on failure.
+ *
+ * @note This funtion is not yet supported.
+ * @note In general this function should not be required to be called directly.
+ */
 r_code ReadVRML(char *filename, mesh **m)
 {
 	return NOT_IMPLEMENTED;
 }
 
-/* CheckErr(): Checks if the return code contains an error code
+/** @brief Checks if the return code contains an error code.
  *
- * Parameters: 
- *     rc - return code to test
- * Returns:
- *     1 if error has occurred, 0 otherwise
+ * @param rc The return code to test.
+ * 
+ * @retVal 1 If error has occurred.
+ * @retVal 0 otherwise.
  */
 unsigned char CheckErr(r_code rc)
 {
@@ -1844,10 +1900,9 @@ unsigned char CheckErr(r_code rc)
 	return 0;
 }
 
-/* PrintErrorMsg(): Prints error message to stderr
+/** @brief Prints error message to stderr.
  *
- * Parameters:
- *     err - error code
+ * @param err error code.
  */
 void PrintErrorMsg(r_code err)
 {
