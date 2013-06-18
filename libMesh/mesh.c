@@ -45,13 +45,15 @@
  *                              RemoveDuplicateVertices().
  *       v 0.055 (28/09/2012) - Implemented CreateTopology functions, and CreateDual()
  *       v 0.060 (13/02/2013) - Added support for genus-2 topolog mesh creation.
+ *       v 0.075 (19/06/2013) - Modified routines with use the vectorMath libraries to 
+ *                              use the new memory passing to avoid mallocs.
  *
  *
  * Descritpion: Implementation of mesh construction and manipulation functions
  *
  * TODO: 
  *    1. finish implemeting face functions - done (v 0.03)
- *    2. finish implementing mesh functions
+ *    2. finish implementing mesh functions 
  *    3. Running into problems with Writers and Subdivide, I am starting to get annoyed
  *       with the edge list... its very awkward to maintain windings. I question if its
  *       needed, I may decide to have a face an vertex list only. - done (v 0.045)
@@ -399,14 +401,18 @@ int * GetFace_cp(faceList *fList,int i)
  * @param fList The face list.
  * @param i The index of the face .
  * @param vList The list of face vertices.
+ * @param User supplied memory for repacking of face vertices.
+ * @param m_out Wuser supplied memory for the output midpoint.
  *
  * @returns A pointer to a the mid-point (geometric centre) of the face.
  * @retVal NULL If an error occurred in calculation.
  * @retVal OUT_OF_MEMORY If an error occurred in memory allocation.
  *
+ * @note If verts_out or m_out are set to NULL then the function will allocate
+ * new memory using malloc, but this is not optimal for repeated computations.
  * 
  */
-float * FaceMidPoint(faceList *fList, int i,vertexList *vList)
+float * FaceMidPoint(faceList *fList, int i,vertexList *vList,float* verts_out,float* m_out)
 {
 	unsigned char type;
 	float *verts;
@@ -416,10 +422,29 @@ float * FaceMidPoint(faceList *fList, int i,vertexList *vList)
 	int j,k;
 	
 	type = fList->faceTypes[i];
-	
-	if (!(verts = (float *)malloc(type*(vList->dim)*sizeof(float))))
+    
+	if (verts_out != NULL)
 	{
-		return OUT_OF_MEMORY;
+		verts = verts_out;
+	}
+	else
+	{
+		if (!(verts = (float *)malloc(type*(vList->dim)*sizeof(float))))
+		{
+			return OUT_OF_MEMORY;
+		}
+	}
+
+	if (m_out != NULL)
+	{
+		mean = m_out;
+	}
+	else
+	{
+		if (!(mean = (float*)malloc((vList->dim)*sizeof(float))))
+		{
+			return OUT_OF_MEMORY;
+		}
 	}
 	
 	face = GetFace_ptr(fList,i);
@@ -433,15 +458,18 @@ float * FaceMidPoint(faceList *fList, int i,vertexList *vList)
 		} 
 	}
 	
-	mean = Mean_f(type,verts,vList->dim);
+	mean = Mean_f(type,verts,mean,vList->dim);
+	
+	if (verts_out == NULL)
+	{
+		free(verts);
+	}
 	
 	if (!(mean))
 	{
 		return NULL;
 	}
-	
-	free(verts);
-	
+
 	return mean;
 }
 
@@ -560,6 +588,7 @@ mesh * CreateDual(mesh *m)
 	int i,j,k;
 	int *face;
 	float *face2vert;
+	float * verts_temp;
 	int vert2face[MAX_FACE_TYPE];
 	int reorderedvert2face[MAX_FACE_TYPE];
 	int edge[2];
@@ -570,13 +599,24 @@ mesh * CreateDual(mesh *m)
 	int u,l;
 	mdual = CreateMesh(m->fList->numFaces,3,m->vList->numVerts,MAX_FACE_TYPE);
 	nf = m->fList->numFaces;
+	/*to avoid unnecessary mallocs*/
+	if (!(verts_temp = (float *)malloc((m->fList->maxVerts)*(m->vList->dim)*sizeof(float))))
+	{
+		return OUT_OF_MEMORY;
+	}
+
+	if (!(face2vert = (float *)malloc((m->vList->dim)*sizeof(float))))
+	{
+    	return OUT_OF_MEMORY;		
+	}
 	/*faces become vertices*/
 	for (i=0;i<nf;i++)
 	{
-		face2vert = FaceMidPoint(m->fList,i,m->vList);
+		face2vert = FaceMidPoint(m->fList,i,m->vList,verts_temp,face2vert);
 		InsertVertex(mdual->vList,face2vert);
-		free(face2vert);
 	}
+	free(verts_temp);
+	free(face2vert);
 	/*vertices become faces*/
 	nv = m->vList->numVerts;
 	for (j=0;j<nv;j++)
@@ -671,6 +711,13 @@ r_code SubDivideFaces(mesh *m)
 	r_code rc;
 	N = m->fList->numFaces;
 	dim = m->vList->dim;
+
+	/*finally go round to fixing the vector math lib*/
+	if (!(m_j = (float *)malloc(dim*sizeof(float))))
+	{
+		return OUT_OF_MEMORY;
+	}
+
 	/*for every face*/
 	for (i=0;i<N;i++)
 	{
@@ -683,10 +730,9 @@ r_code SubDivideFaces(mesh *m)
 		{
 			vert_j = GetVertex_ptr(m->vList,face[j]);
 			vert_jp1 = GetVertex_ptr(m->vList,face[(j+1)%n]);
-			m_j = Midpoint_f(vert_j,vert_jp1,dim);
+			m_j = Midpoint_f(vert_j,vert_jp1,m_j,dim);
 			rc = InsertVertex(m->vList,m_j);
 			if (rc <=0) return rc;
-			free(m_j);/*I REALLY HATE THIS!!!! Need to fix the vector math lib*/
 		}
 
 		/*insert triangular faces of the form {v_j,m_j,m_(j-1)}*/
@@ -738,6 +784,7 @@ r_code RemoveDuplicateVertices(mesh *m)
 	int N,dim;
 	int *numDups;
 	int * face;
+	float *temp;
 	float *vert_i,*vert_j;
 
 	N = m->vList->numVerts;
@@ -755,6 +802,10 @@ r_code RemoveDuplicateVertices(mesh *m)
 	{
 		return OUT_OF_MEMORY;
 	}
+	if (!(temp = (float *)malloc(dim*sizeof(float))))
+	{
+		return OUT_OF_MEMORY;
+	}
 	/*initialise duplicate array to all ones*/
 	for (i=0;i<N;i++) dups[i] = -1;
 	/*for every vertex*/
@@ -768,7 +819,7 @@ r_code RemoveDuplicateVertices(mesh *m)
 			for (j=i+1;j<N;j++)
 			{
 				vert_j = GetVertex_ptr(m->vList,j);
-				if (NormDiff_f(vert_i,vert_j,dim,TWO_NORM) == 0.0)
+				if (NormDiff_f(vert_i,vert_j,temp,dim,TWO_NORM) == 0.0)
 				{
 					dups[j] = i;
 				}
@@ -846,7 +897,7 @@ float * GeometricCentre(mesh* m)
 {
 	float * geoCentre;
 	
-	geoCentre = Mean_f(m->vList->numVerts,m->vList->verts,m->vList->dim);
+	geoCentre = Mean_f(m->vList->numVerts,m->vList->verts,NULL,m->vList->dim);
 	
 	return geoCentre;
 }
@@ -1695,6 +1746,12 @@ r_code WriteSTL(char *filename,mesh *m)
 	{
 		return WRITE_FAILED;
 	}
+
+	if (!(norm = (float*)malloc(3*sizeof(float))))
+	{
+		return OUT_OF_MEMORY;
+	}
+
 	
 	nv = m->vList->numVerts;
 	nf = m->fList->numFaces;
@@ -1712,7 +1769,7 @@ r_code WriteSTL(char *filename,mesh *m)
 		v1 = GetVertex_ptr(m->vList,face[1]);
 		vn = GetVertex_ptr(m->vList,face[m->fList->faceTypes[i]-1]);
 				
-		norm = Normal_f(v0, v1,vn);
+		norm = Normal_f(v0, v1,vn,norm);
 		fprintf(fp,"facet ");
 		fprintf(fp,"normal %f %f %f\n",norm[X],norm[Y],norm[Z]);
 		fprintf(fp,"outer loop\n");

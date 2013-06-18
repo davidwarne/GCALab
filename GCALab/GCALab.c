@@ -1521,6 +1521,11 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 	m = WS(ws_id)->GCAGeometry[gca_id];
 	gca = WS(ws_id)->GCAList[gca_id];
 	
+	if(!(n = (float*)malloc(3*sizeof(float))))
+	{
+		return;
+	}
+
 	/*we assume that we are dealing with a triangular mesh*/
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	/*TODO: expand this to support other meshes*/
@@ -1547,16 +1552,16 @@ void GCALab_Graphics_DrawGCA(unsigned int ws_id,unsigned int gca_id)
 		glMaterialf(GL_FRONT,GL_SHININESS,shininess);
 		glMaterialfv(GL_FRONT,GL_AMBIENT_AND_DIFFUSE,ambdif);    
 		/*compute the cell normal*/
-		n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]));
+		n = Normal_f(m->vList->verts + 3*(m->fList->faces[3*i]),m->vList->verts + 3*(m->fList->faces[3*i+1]),m->vList->verts + 3*(m->fList->faces[3*i+2]),n);
 		/*draw the cell*/
 		glNormal3fv(n);
 		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i]));
 		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+1]));
 		glVertex3fv(m->vList->verts + 3*(m->fList->faces[3*i+2]));
-		free(n);
 	}
 	glEnd();
 	
+    free(n);
 	if (showMesh)
 	{
     	glDisable(GL_LIGHTING);

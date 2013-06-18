@@ -32,6 +32,8 @@
  *                             Add_lf,Diff_lf,MidPoint_lf,Mean_lf,Norm_lf
  *                             NormDiff_lf,Dot_lf,Cross_lf,MagCross_lf,ScalarTriple_lf
  *       v 0.022 (19/03/2012) - added Normal_f() and Normal_lf()
+ *       v 0.03 (19/06/2013) - Finally go round to fixinf the  ssue with many internal
+ *                             mallocs in the functions. Now optional memory may be supplied by the calling funtion.
  *
  * Descritpion: library of common vector math functions
  *
@@ -352,63 +354,84 @@ float MagCross_f(float *x, float *y)
 
 /** @brief computes the unit normal to the plane defined by the three given points.
  *
- * 
- *     x,y,z - vectors in R^3
+ * @param x The first point operand.
+ * @param y The second point operand.
+ * @param z The third point operand.
+ * @param n_out User suplied memory for the unit normal output.
+ *
+ * @returns A pointer to the unit normal to the plain defined by 
+ * \a x \a y and \a z.
+ *
+ * @note If \a n_out != NULL then the returned point is equal to \a n_out. Otherwise new memory is allocated.
  */
-float *Normal_f(float *x, float *y,float *z)
+float *Normal_f(float *x, float *y,float *z, float* n_out)
 {
-	float *v0;
-	float *v1;
+	float v0[3];
+	float v1[3];
 	float *normal;
-	float mag;
-	v0 = Diff_f(y,x,3);
-	v1 = Diff_f(z,x,3);
-	
-	normal = Cross_f(v0,v1);
-	mag = Norm_f(normal,3,TWO_NORM);
-	normal[0] /= mag;
-	normal[1] /= mag;
-	normal[2] /= mag;
-	free(v0);
-	free(v1);
+	float inv_mag;
+
+	normal = n_out;
+
+    /*Get two linearly independent vectors*/
+	Diff_f(y,x,v0,3);
+	Diff_f(z,x,v1,3);
+	/*compute the unit normal*/
+	normal = Cross_f(v0,v1,normal);
+	inv_mag = 1.0/Norm_f(normal,3,TWO_NORM);
+	normal[0] *= inv_mag;
+	normal[1] *= inv_mag;
+	normal[2] *= inv_mag;
+
 	return normal;
 }
 
-/* ScalarTriple_f(): scalar triple product in R^3 
+/** @brief The scalar triple product in R^3. 
  *
- * Parameters:
- *     x,y,z - three vectors in R^3
- * Return:
- *     dot(x,cross(y,z))
- * Pre-condition:
- *	   x,y and z must be in R^3
+ * @param x The first point operand.
+ * @param y The second point operand.
+ * @param z The third point operand.
+ *
+ * @returns The scalar triple product defined by dot(x,cross(y,z))
+ * @remark The scalar triple product gives the volume of the 
+ * parallelpiped subtended by the vectors \a x \a y and \a z.
  */
 float ScalarTriple_f(float *x, float *y,float *z)
 {
-	float *tmp,stp;
-	tmp = Cross_f(y,z);
+	float tmp[3];
+	float stp;
+	Cross_f(y,z,tmp);
 	stp = Dot_f(x,tmp,3);
-	free(tmp);
 	return stp;
 }
 
-/* Add_lf(): computes the vector addition of vectors x,y (64-bit floats) in R^n
+/** @brief Computes the vector addition of vectors x,y (64-bit floats) in R^n
  *
- * Parameters:
- *     x,y - vectors to compute x + y
- *     n - dimension of x and y
- * Returns:
- *     z - the sum of x and y
+ * @param x Fist vector operand.
+ * @param y Second vector operand.
+ * @param z_out user supplied pointer for results
+ * @param n Dimension of operands.
+ *
+ * @returns pointer to vector which is the element wise sum of \a x and \a y.
+ * @note If \a z_out != NULL then the returned point is equal to \a z_out. Otherwise
+ * new memory is allocted.
  */
-double * Add_lf(double *x, double *y, int n)
+double * Add_lf(double *x, double *y,double* z_out,int n)
 {
 	double * z;
 	int i;
 	
-	if (!(z = (double *)malloc(n*sizeof(double))))
-	{
-		return NULL;
-	}
+    if (z_out != NULL)
+    {
+        z = z_out;
+    }
+    else
+    {
+	    if (!(z = (double *)malloc(n*sizeof(double))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	for (i=0;i<n;i++)
 	{
@@ -417,24 +440,34 @@ double * Add_lf(double *x, double *y, int n)
 	return z;
 }
 
-/* Diff_lf(): computes the vector difference of vectors x,y (64-bit floats) in R^n
+/** @brief Computes the vector difference of vectors x,y (64-bit floats) in R^n
  *
- * Parameters:
- *     x,y - vectors to compute x - y
- *     n - dimension of x and y
- * Returns:
- *     z - the difference of x and y
+ * @param x Fist vector operand.
+ * @param y Second vector operand.
+ * @param z_out user supplied pointer for results
+ * @param n Dimension of operands.
+ *
+ * @returns pointer to vector which is the element wise differnce of \a x and \a y.
+ * @note If \a z_out != NULL then the returned point is equal to \a z_out. Otherwise
+ * new memory is allocted.
  */
-double * Diff_lf(double *x, double *y, int n)
+double * Diff_lf(double *x, double *y, double* z_out,int n)
 {
 	double * z;
 	int i;
 	
-	if (!(z = (double *)malloc(n*sizeof(double))))
-	{
-		return NULL;
+    if (z_out != NULL)
+    {
+        z = z_out;
+    }
+    else
+    {
+	    if (!(z = (double *)malloc(n*sizeof(double))))
+	    {
+		    return NULL;
+	    }
 	}
-	
+
 	for (i=0;i<n;i++)
 	{
 		z[i] = x[i] - y[i];
@@ -442,25 +475,34 @@ double * Diff_lf(double *x, double *y, int n)
 	return z;
 }
 
-/* MidPoint_lf(): calculates the midpoint of two single vectors (64-bit float) 
- *               of dimension n
- * Parameters:
- *     x,y - two vectors to compute midpoint of
- *     n - dimension of x and y
- * Returns:
- *     m - pointer to memory containin the midpoint
- * Pre-condition:
- *	   n must be valid for both x and y
+/** @brief Calculates the midpoint of two single vectors (64-bit float) 
+ *  of dimension n.
+ *
+ * @param x Fist vector operand.
+ * @param y Second vector operand.
+ * @param m_out user supplied pointer for results
+ * @param n Dimension of operands.
+ *
+ * @returns pointer to vector which is the midpoint.
+ * @note If \a m_out != NULL then the returned point is equal to \a m_out. Otherwise
+ * new memory is allocted.
  */
-double *Midpoint_lf(double *x, double *y, int n)
+double *Midpoint_lf(double *x, double *y, double *m_out, int n)
 {
 	double *m;
 	int i;
 	
-	if (!(m = (double *)malloc(n*sizeof(double))))
-	{
-		return NULL;
-	}
+    if (m_out != NULL)
+    {
+        m = m_out;
+    }
+    else
+    {
+	    if (!(m = (double *)malloc(n*sizeof(double))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	for (i=0;i<n;i++)
 	{
@@ -469,25 +511,32 @@ double *Midpoint_lf(double *x, double *y, int n)
 	return m;
 }
 
-/* Mean_lf(): computes the mean of num vectors in R^n
+/** @brief Computes the mean of num vectors in R^n.
  *
- * Parameters:
- *     num - number of vectors to average
- *     vList - list of vectors
- *     n - dimension of the vectors
- * Returns:
- *     the mean vector
- * Pre-condition:
- *     num must be equal to the number of vectors in the variab;e argument list
+ * @param num The number of vectors to average.
+ * @param vList A list of vectors.
+ * @param m_out User supplied pointer for results.
+ * @param n The dimension of the vectors.
+ * 
+ * @returns A pointer to the mean vector.
+ * @note If \a m_out != NULL then the returned point is equal to \a m_out. Otherwise
+ * new memory is allocted.
  */
-double *Mean_lf(int num,double * vList, int n)
+double *Mean_lf(int num,double * vList, double* m_out, int n)
 {
 	double *m,*vec;
 	int i,j;
-	if (!(m = (double *)malloc(n*sizeof(double))))
-	{
-		return NULL;
-	}
+    if (m_out != NULL)
+    {
+        m = m_out;
+    }
+    else
+    {
+	    if (!(m = (double *)malloc(n*sizeof(double))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	for (j=0;j<n;j++)
 	{
@@ -511,19 +560,16 @@ double *Mean_lf(int num,double * vList, int n)
 	return m;
 }
 
-/* Norm_lf(): calculates the norm of a vector (64-bit float) of dimension n
+/** @brief Calculates the norm of a vector (64-bit float) of dimension n.
  * 
- * Parameters:
- *     x - vector to compute norm of
- *     n - dimension of x
- *     norm - the type of norm to take support 1-norm, 2-norm or infinity-norm
- * Returns:
- *     n - the norm of x
- * Pre-condition:
- *	   nrm must be valid for x
- * Note: 
- *     x and y are interpreted as column vectors for the purpose of the 1-norm
- *     or the infinity-norm
+ * @param x Vector to compute norm of.
+ * @param n Dimension of x.
+ * @param norm The type of norm to take support 1-norm, 2-norm or infinity-norm.
+ *
+ * @returns The norm of x.
+ *
+ * @note \a x and \a y are interpreted as column vectors for the purpose of the 1-norm
+ * or the infinity-norm
  */
 double Norm_lf(double *x,int n,unsigned char norm)
 {
@@ -537,16 +583,16 @@ double Norm_lf(double *x,int n,unsigned char norm)
 		case ONE_NORM:
 			for (i=0;i<n;i++)
 			{
-				nrm += x[i];
+				nrm += fabs(x[i]);
 			}
 			break;
 		/*max element*/
 		case INF_NORM:
 			for (i=0;i<n;i++)
 			{
-				if (nrm < x[i])
+				if (nrm < fabs(x[i]))
 				{
-					nrm = x[i];
+					nrm = fabs(x[i]);
 				}
 			}
 			break;
@@ -563,41 +609,41 @@ double Norm_lf(double *x,int n,unsigned char norm)
 	return nrm;
 }
 
-/* NormDiff_lf(): calculates the norm of the differenc of two vectors (64-bit float)
- *               of dimension n
- * Parameters:
- *     x,y - two vectors to compute norm diff
- *     n - dimension of x and y
- *     norm - the type of norm to take support 1-norm, 2-norm or infinity-norm
- * Returns:
- *     nd - the norm of the difference
- * Pre-condition:
- *	   n must be valid for both x and y
- * Note: 
- *     x and y are interpreted as column vectors for the purpose of the 1-norm
- *     or the infinity-norm
+/** @brief Calculates the norm of the difference of two vectors (64-bit float)
+ *  of dimension n
+ *
+ * @param x First vector operand. 
+ * @param y Second vector operand.
+ * @param tmp User supplied memory to avoid repeated mallocs.
+ * @param n Dimension of \a x and \a y.
+ * @param norm The type of norm to take support 1-norm, 2-norm or infinity-norm.
+ *
+ * @returns The norm of the difference.
+ * @note \a x and \a y are interpreted as column vectors for the purpose of the 1-norm
+ * or the infinity-norm.
+ * @note If \a tmp == NULL the function will still operate correctly, but will perform
+ * internal mallocs.
  */
-double NormDiff_lf(double *x, double *y,int n,unsigned char norm)
+double NormDiff_lf(double *x, double *y,double* tmp,int n,unsigned char norm)
 {
 	double nrm, *z;
 	int i;
 	
+    z = tmp;
 	nrm = 0.0;
-	z = Diff_lf(x,y,n);
-	Norm_lf(z,n,norm);
+	z = Diff_lf(x,y,z,n);
+	nrm = Norm_lf(z,n,norm);
 	free(z);
 	return nrm;
 }
 
-/* Dot_lf(): vector inner product in R^n
+/** @brief Vector inner product in R^n
  *
- * Parameters:
- *     x,y - two vectors in R^n
- *     n - dimension of x and y
- * Return:
- *     vector inner product (a scalar)
- * Pre-condition:
- *	   n must be valid for both x and y
+ * @param x First vector operand.
+ * @param y Second vectot operand.
+ * @param n Dimension of \a x and \a y. 
+ * 
+ * @returns The vector inner product (a scalar).
  */
 double Dot_lf(double *x, double *y, int n)
 {
@@ -611,22 +657,32 @@ double Dot_lf(double *x, double *y, int n)
 	return d;
 }
 
-/* Cross_lf(): vector cross product in R^3
+/** @brief The vector cross product in R^3
  *
- * Parameters:
- *     x,y - two vectors in R^3
- * Return:
- *     vector cross product (a vector)
- * Pre-condition:
- *	   both x and y must be in R^3
+ * @param x The first vector operand in R^3.
+ * @param y The second vector operand in R^3.
+ * @param z_out User supplied memory for result.
+ *
+ * @returns vector cross product (a vector).
+ * @remark Both x and y must be in R^3.
+ * @note If \a z_out != NULL then the returned point is equal to \a z_out. Otherwise
+ * new memory is allocted.
  */
-double *Cross_lf(double *x, double *y)
+double *Cross_lf(double *x, double *y,double *z_out)
 {
 	double *z;
-	if (!(z = (double *)malloc(3*sizeof(double))))
-	{
-		return NULL;
-	}
+
+    if (z_out != NULL)
+    {
+        z = z_out;
+    }
+    else
+    {
+	    if (!(z = (double *)malloc(3*sizeof(double))))
+	    {
+		    return NULL;
+	    }
+    }
 	
 	z[0] = x[1]*y[2] - x[2]*y[1];
 	z[1] = x[2]*y[0] - x[0]*y[2];
@@ -635,14 +691,14 @@ double *Cross_lf(double *x, double *y)
 	return z;
 }
 
-/* MagCross_lf(): magnitude vector cross product in R^3
+/** @brief Computes magnitude vector cross product in R^3.
  *
- * Parameters:
- *     x,y - two vectors in R^3
- * Return:
- *     magnitude of vector cross product (a scalar)
- * Pre-condition:
- *	   both x and y must be in R^3
+ * @param x The first vector operand in R^3.
+ * @param y The second vector operand in R^3.
+ * 
+ * @returns The magnitude of vector cross product (a scalar).
+ * @remark Both x and y must be in R^3.
+ * @remark The magnitude is equal to the area of the parallelogram subtended by \a x and \a y.
  */
 double MagCross_lf(double *x, double *y)
 {
@@ -654,41 +710,55 @@ double MagCross_lf(double *x, double *y)
 	return sqrt(z0*z0+z1*z1+z2*z2);
 }
 
-/* Normal_lf(): computes the normal to the plane defined by the three given poitns
+/** @brief computes the unit normal to the plane defined by the three given points.
  *
- * Parameters:
- *     x,y,z - vectors in R^3
+ * @param x The first point operand.
+ * @param y The second point operand.
+ * @param z The third point operand.
+ * @param n_out User suplied memory for the unit normal output.
+ *
+ * @returns A pointer to the unit normal to the plain defined by 
+ * \a x \a y and \a z.
+ *
+ * @note If \a n_out != NULL then the returned point is equal to \a n_out. Otherwise new memory is allocated.
  */
-double *Normal_lf(double *x, double *y,double *z)
+double *Normal_lf(double *x, double *y,double *z, double* n_out)
 {
-	double *v0;
-	double *v1;
+	double v0[3];
+	double v1[3];
 	double *normal;
-	v0 = Diff_lf(y,x,3);
-	v1 = Diff_lf(z,x,3);
-	
-	normal = Cross_lf(v0,v1); 
-	free(v0);
-	free(v1);
+	double inv_mag;
+
+	normal = n_out;
+
+    /*Get two linearly independent vectors*/
+	Diff_lf(y,x,v0,3);
+	Diff_lf(z,x,v1,3);
+	/*compute the unit normal*/
+	normal = Cross_lf(v0,v1,normal);
+	inv_mag = 1.0/Norm_lf(normal,3,TWO_NORM);
+	normal[0] *= inv_mag;
+	normal[1] *= inv_mag;
+	normal[2] *= inv_mag;
+
 	return normal;
 }
 
-/* ScalarTriple_f(): scalar triple product in R^3 
+/** @brief The scalar triple product in R^3. 
  *
- * Parameters:
- *     x,y,z - three vectors in R^3
- * Return:
- *     dot(x,cross(y,z))
- * Pre-condition:
- *	   x,y and z must be in R^3
+ * @param x The first point operand.
+ * @param y The second point operand.
+ * @param z The third point operand.
+ *
+ * @returns The scalar triple product defined by dot(x,cross(y,z))
+ * @remark The scalar triple product gives the volume of the 
+ * parallelpiped subtended by the vectors \a x \a y and \a z.
  */
 double ScalarTriple_lf(double *x, double *y,double *z)
 {
-	double *tmp,stp;
-	tmp = Cross_lf(y,z);
+	double tmp[3];
+	double stp;
+	Cross_lf(y,z,tmp);
 	stp = Dot_lf(x,tmp,3);
-	free(tmp);
 	return stp;
 }
-
-

@@ -161,7 +161,7 @@ r_code InsertFace(faceList *fList,int *face,unsigned char type);
 r_code DeleteFace(faceList *fList, int i);
 int * GetFace_ptr(faceList *fList,int i);
 int * GetFace_cp(faceList *fList,int i);
-float * FaceMidPoint(faceList *fList, int i,vertexList *vList);
+float * FaceMidPoint(faceList *fList, int i,vertexList *vList,float *verts_out,float *m_out);
 float FaceArea(faceList *fList, int i,vertexList *vList);
 
 /*mesh functions*/
