@@ -275,7 +275,6 @@ float NormDiff_f(float *x, float *y,float* tmp,int n,unsigned char norm)
 	nrm = 0.0;
 	z = Diff_f(x,y,z,n);
 	nrm = Norm_f(z,n,norm);
-	free(z);
 	return nrm;
 }
 
