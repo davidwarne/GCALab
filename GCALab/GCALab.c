@@ -357,7 +357,7 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	GCALab_Register_Operation("param",&GCALab_OP_Param,args,desc);
 	args = "i";
 	desc = "Computes pre-images of the current configuration of the graph cellular automaton at i";
-	GCALab_Register_Operation("reverse",&GCALab_OP_Reverse,args,desc);
+	GCALab_Register_Operation("pre",&GCALab_OP_Reverse,args,desc);
 	args = "i (-n numsamples | -l config0 configN)";
 	desc = "Computes state frequency histogram for each cell in the graph cellular automaton at i";
 	GCALab_Register_Operation("freq",&GCALab_OP_Freq,args,desc);

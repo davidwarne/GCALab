@@ -1215,84 +1215,79 @@ chunk *CAGetPreImages(GraphCellularAutomaton *GCA,unsigned int* n,unsigned char*
 unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *theta_i,state *theta_j,unsigned int startcell)
 {
 	unsigned char r;
+	unsigned char k2;
 	state *W_i,*W_j;
-	unsigned int i,j,ii,jj;
-	unsigned int q,p,pp;
+	unsigned int i,j;
 	unsigned int sum,prev_sum;
 	unsigned int *U_i,*U_j;
-	unsigned int state_mask,mask_i,mask_j,mask_ii,mask_jj;
+	unsigned int state_mask,mask_nh;
+    unsigned int theta_size;
+
+	k2 = (GCA->params->k-1)/2;
+    r = GCA->log2s*k2;
 	
-	state_mask = (0x1 << (GCA->log2s)) - 1;
-	r = GCA->log2s*(GCA->params->k-1)/2;
-	/*for every connection*/
+    state_mask = (0x1 << (GCA->log2s)) - 1;
+	mask_nh = (state_mask << r); 
+	theta_size = (GCA->params->s)*(GCA->params->s);
+    /*for every connection*/
 	for (i=startcell+1;i<GCA->params->N;i++)
 	{
-
+        register unsigned int i_offset;
+        i_offset = i*(GCA->LUT_size);
 		U_i = GetNeighbourhood(GCA,i);
 		for (j=0;j<(GCA->params->k-1);j++)
 		{
-			/*if (U_i[j] == 0xFFFFFFFF)
-			{
-				break;
-			}*/
+            register unsigned int ii,jj,q,p,pp;
+            register unsigned int mask_ii,mask_jj,log2s_ii,log2s_jj;
+			register unsigned int Uij_offset;
+            Uij_offset = U_i[j]*(GCA->LUT_size);
 			U_j = GetNeighbourhood(GCA,U_i[j]);
 			/*get the neighbour number for each cell in the other neighbourhood*/
 			ii = 0;
 			while (U_j[ii] != i) ii++;
-			jj = 0;
-			while (U_i[jj] != U_i[j]) jj++;
-			ii = (ii >= (GCA->params->k-1)/2) ? ii+1 : ii;
-			jj = (jj >= (GCA->params->k-1)/2) ? jj+1 : jj;
-			/*create masks for selecting respective Pre-neighbourhood states*/
-			mask_i = (state_mask << r); 
-			mask_jj = (state_mask << GCA->log2s*jj);
-			mask_j = (state_mask << r); 
-			mask_ii = (state_mask << GCA->log2s*ii);
+			jj = j;
+			ii += (ii >= k2);
+			jj += (jj >= k2);
+            log2s_ii = GCA->log2s*ii;
+            log2s_jj = GCA->log2s*jj;
+            /*create masks for selecting respective Pre-neighbourhood states*/
+			mask_jj = (state_mask << log2s_jj);
+			mask_ii = (state_mask << log2s_ii);
 				
 			/*create list for sub-configs for match test*/
-			memset((void*)theta_i,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			memset((void*)theta_i,0,theta_size*sizeof(state));
 			for (q=0;q<GCA->LUT_size;q++)
 			{
-				/*p = state i : state j*/
-				if( flags[i*(GCA->LUT_size) + q])
-				{
-					p = (((q & mask_i) >> r) << GCA->log2s);
-					p |= ((q & mask_jj) >> GCA->log2s*jj); 
-					/*only set if this still a possible pre-neighbourhood*/
-					theta_i[p] = 1;
-				}
+                /*p = state i : state j*/
+				p = (((q & mask_nh) >> r) << GCA->log2s);
+				p |= ((q & mask_jj) >> log2s_jj); 
+				theta_i[p] |= flags[i_offset + q];
+
 			}
 				
-			memset((void*)theta_j,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			memset((void*)theta_j,0,theta_size*sizeof(state));
 			for (q=0;q<GCA->LUT_size;q++)
 			{
 				/*p = state i : state j*/						
-				if (flags[U_i[j]*(GCA->LUT_size) + q])
-				{
-					p = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
-					p |= ((q & mask_j) >> r); 
-					/*only set if this still a possible pre-neighbourhood*/
-					theta_j[p] = 1;
-				}
+				p = (((q & mask_ii) >> log2s_ii) << GCA->log2s);
+				p |= ((q & mask_nh) >> r); 
+				theta_j[p] |= flags[Uij_offset +q];
 			}
 				
 			/* if theta_i not in theta_j then matching Pre-neighbourhoods 
 			 * cannot contribute Pre-Image around cell_i, likewise for 
 			 * theta_j not in theta_i 
 			 */
-			for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
+			for (p=0;p<theta_size;p++)
 			{
 			 	if (theta_i[p] && !theta_j[p])
 			 	{
 			 		/*remove invalid pre-neighbourhoods for cell_i*/
 			 		for (q=0;q<GCA->LUT_size;q++)
 					{
-						if (flags[i*(GCA->LUT_size) + q])
-						{
-							pp = (((q & mask_i) >> r) << GCA->log2s);
-							pp |= ((q & mask_jj) >> GCA->log2s*jj); 
-							flags[i*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[i*(GCA->LUT_size) + q];
-						}
+						pp = (((q & mask_nh) >> r) << GCA->log2s);
+						pp |= ((q & mask_jj) >> log2s_jj); 
+						flags[i_offset + q] &= (p != pp);
 					}				
 			 	}
 			 	else if (!theta_i[p] && theta_j[p])
@@ -1300,12 +1295,9 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 			 		/*remove invalid pre-neighbourhoods for cell_j*/
 			 		for (q=0;q<GCA->LUT_size;q++)
 					{
-						if (flags[U_i[j]*(GCA->LUT_size) + q])
-						{
-							pp = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
-							pp |= ((q & mask_j) >> r); 
-							flags[U_i[j]*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[U_i[j]*(GCA->LUT_size) + q];
-						}
+						pp = (((q & mask_ii) >> log2s_ii) << GCA->log2s);
+						pp |= ((q & mask_nh) >> r); 
+						flags[Uij_offset + q] &= (p != pp);
 					}
 			 	}
 			}
@@ -1313,72 +1305,61 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 	}/*end for cell_i*/
 	for (i=0;i<startcell+1;i++)
 	{
-
+        register unsigned int i_offset;
+        i_offset = i*(GCA->LUT_size);
 		U_i = GetNeighbourhood(GCA,i);
 		for (j=0;j<(GCA->params->k-1);j++)
 		{
-			/*if (U_i[j] == 0xFFFFFFFF)
-			{
-				break;
-			}*/
+            register unsigned int ii,jj,q,p,pp;
+            register unsigned int mask_ii,mask_jj,log2s_ii,log2s_jj;
+			register unsigned int Uij_offset;
+            Uij_offset = U_i[j]*(GCA->LUT_size);
 			U_j = GetNeighbourhood(GCA,U_i[j]);
 			/*get the neighbour number for each cell in the other neighbourhood*/
 			ii = 0;
 			while (U_j[ii] != i) ii++;
-			jj = 0;
-			while (U_i[jj] != U_i[j]) jj++;
-			ii = (ii >= (GCA->params->k-1)/2) ? ii+1 : ii;
-			jj = (jj >= (GCA->params->k-1)/2) ? jj+1 : jj;
+			jj = j;
+			ii += (ii >= k2);
+			jj += (jj >= k2);
+            log2s_ii = GCA->log2s*ii;
+            log2s_jj = GCA->log2s*jj;
 			/*create masks for selecting respective Pre-neighbourhood states*/
-			mask_i = (state_mask << r); 
-			mask_jj = (state_mask << GCA->log2s*jj);
-			mask_j = (state_mask << r); 
-			mask_ii = (state_mask << GCA->log2s*ii);
+			mask_jj = (state_mask << log2s_jj);
+			mask_ii = (state_mask << log2s_ii);
 				
 			/*create list for sub-configs for match test*/
-			memset((void*)theta_i,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			memset((void*)theta_i,0,theta_size*sizeof(state));
 			for (q=0;q<GCA->LUT_size;q++)
 			{
 				/*p = state i : state j*/
-				if( flags[i*(GCA->LUT_size) + q])
-				{
-					p = (((q & mask_i) >> r) << GCA->log2s);
-					p |= ((q & mask_jj) >> GCA->log2s*jj); 
-					/*only set if this still a possible pre-neighbourhood*/
-					theta_i[p] = 1;
-				}
+				p = (((q & mask_nh) >> r) << GCA->log2s);
+				p |= ((q & mask_jj) >> log2s_jj); 
+				theta_i[p] |= flags[i_offset + q];
 			}
 				
-			memset((void*)theta_j,0,(GCA->params->s)*(GCA->params->s)*sizeof(state));
+			memset((void*)theta_j,0,theta_size*sizeof(state));
 			for (q=0;q<GCA->LUT_size;q++)
 			{
 				/*p = state i : state j*/						
-				if (flags[U_i[j]*(GCA->LUT_size) + q])
-				{
-					p = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
-					p |= ((q & mask_j) >> r); 
-					/*only set if this still a possible pre-neighbourhood*/
-					theta_j[p] = 1;
-				}
+				p = (((q & mask_ii) >> log2s_ii) << GCA->log2s);
+				p |= ((q & mask_nh) >> r); 
+				theta_j[p] |= flags[Uij_offset +q];
 			}
 				
 			/* if theta_i not in theta_j then matching Pre-neighbourhoods 
 			 * cannot contribute Pre-Image around cell_i, likewise for 
 			 * theta_j not in theta_i 
 			 */
-			for (p=0;p<(GCA->params->s)*(GCA->params->s);p++)
+			for (p=0;p<theta_size;p++)
 			{
 			 	if (theta_i[p] && !theta_j[p])
 			 	{
 			 		/*remove invalid pre-neighbourhoods for cell_i*/
 			 		for (q=0;q<GCA->LUT_size;q++)
 					{
-						if (flags[i*(GCA->LUT_size) + q])
-						{
-							pp = (((q & mask_i) >> r) << GCA->log2s);
-							pp |= ((q & mask_jj) >> GCA->log2s*jj); 
-							flags[i*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[i*(GCA->LUT_size) + q];
-						}
+						pp = (((q & mask_nh) >> r) << GCA->log2s);
+						pp |= ((q & mask_jj) >> log2s_jj); 
+						flags[i_offset + q] &= (p != pp);
 					}				
 			 	}
 			 	else if (!theta_i[p] && theta_j[p])
@@ -1386,12 +1367,9 @@ unsigned char NhElim(GraphCellularAutomaton *GCA,unsigned char *flags,state *the
 			 		/*remove invalid pre-neighbourhoods for cell_j*/
 			 		for (q=0;q<GCA->LUT_size;q++)
 					{
-						if (flags[U_i[j]*(GCA->LUT_size) + q])
-						{
-							pp = (((q & mask_ii) >> GCA->log2s*ii) << GCA->log2s);
-							pp |= ((q & mask_j) >> r); 
-							flags[U_i[j]*(GCA->LUT_size) + q] = (p == pp) ? 0 : flags[U_i[j]*(GCA->LUT_size) + q];
-						}
+						pp = (((q & mask_ii) >> log2s_ii) << GCA->log2s);
+						pp |= ((q & mask_nh) >> r); 
+						flags[Uij_offset + q] &= (p != pp);
 					}
 			 	}
 			}
@@ -1438,11 +1416,6 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 		return NULL;
 	}
 	
-	if (!(counts = (unsigned char*)malloc((GCA->params->N)*sizeof(unsigned char))))
-	{
-		return NULL;
-	}
-
 	
 	/*initial flags - set to 1 if a possible pre-neighbourhood else 0*/
 	for (i=0;i<GCA->params->N;i++)
@@ -1450,7 +1423,7 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 		state s = GetCellStatePacked(GCA,i,0);
 		for (j=0;j<GCA->LUT_size;j++)
 		{
-			flags[i*(GCA->LUT_size)+j] = (GCA->ruleLUT[j] == s) ? 1 : 0;
+			flags[i*(GCA->LUT_size)+j] = (GCA->ruleLUT[j] == s);
 		}
 	}
 	prev_sum = 0;
@@ -1488,33 +1461,9 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 				prev_sum = sum;
 			}
 		}
-		/*test of Garden-of-eden states*/
-		/*TODO: although colzeros => GOE*/
-		/*      !(GOE => colzeros)*/
-		/*DAMMIT! gotta rethink here...*/
-		for (i=0;i<(GCA->params->N);i++)
-		{
-			counts[i] = 0;
-			for (j=0;j<(GCA->LUT_size);j++)
-			{
-				counts[i] += flags[i*(GCA->LUT_size)+j];
-			}
-		}
 
-		for (i=0;i<(GCA->params->N);i++)
-		{
-			if (counts[i] == 0)
-			{
-				/*then set the entire flags array to zero*/
-				/*this is definitely a GOE*/
-				for (j=0;j<(GCA->params->N)*(GCA->LUT_size);j++)
-				{
-					flags[j] = 0;
-				}
-				exit = 1;	
-			}
-			
-		}
+        exit = (sum == 0);
+
 		/*if we are still uncertain we must further analyse*/
 		if(!exit)
 		{
@@ -1571,7 +1520,6 @@ unsigned char* GetFlags(GraphCellularAutomaton* GCA)
 	free(theta_i);
 	free(theta_j);
 	free(tmp_flags);
-	free(counts);
 	/*flags along with the center state of LUT indexes encodes all possible
 	 * pre-images for the current configurations
 	 */

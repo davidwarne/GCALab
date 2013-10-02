@@ -1,14 +1,14 @@
 #!/bin/make
 
 CC = gcc
-#OPTS = -O2 -DWITH_GRAPHICS
-OPTS = -g -DWITH_GRAPHICS 
+OPTS = -O2 -DWITH_GRAPHICS
+#OPTS = -g -DWITH_GRAPHICS 
 #OPTS = -g
 SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c ../libBitMap/BitMapFile.c ../libBitMap/BitMapWriter.c
 OBJS = $(SRC:.c=.o)
 INC = -I../libMesh/ -I../libGCA/ -I ../libBitMap -I./ 
 BIN = GCALab
-LIBS = -lm -lpthread -lg -lglut -lGLU
+LIBS = -lm -lpthread -lg -lglut -lGL -lGLU
 #PROFILE = -g -pg
 
 
