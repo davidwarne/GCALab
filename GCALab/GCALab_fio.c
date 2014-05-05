@@ -1,3 +1,19 @@
+/* GCALab: An analysis tool for Graph Cellular Automata
+ * Copyright (C) 2012  David J. Warne
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 /* File: GCALab_fio.c
  *
  * Author: David J. Warne (david.warne@qut.edu.au)
@@ -18,16 +34,14 @@
 char *GCALab_fio_format[14] = {"%f","%lf","%hhu","%hu","%u","%llu","%hhd","%hd","%d","%lld","%hhx","%hx","%x","%llx"};
 unsigned char cellCols[8][3] = {{0,0,0},{255,255,255},{255,0,0},{0,255,0},{255,0,0},{255,0,255},{255,255,0},{0,255,255}};
 
-/* GCALAB_saveCA(): Writes CA data to a file
+/** @brief Writes CA data to a file
  *
- * Parameters:
- *     filename - the file to write to
- *     GCA - Graph Cellular Automaton to write to file
- *     m - geometry of the CA topology
+ * @param filename the file to write to.
+ * @param GCA Graph Cellular Automaton to write to file.
+ * @param m geometry of the CA topology.
  *
- * Note:
- *   This function will NOT write any spatio-temporal information, only sufficient
- *   information to define the rule.
+ * @note This function will NOT write any spatio-temporal information, only sufficient
+ * information to define the rule.
  */ 
 char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m)
 {
@@ -138,6 +152,17 @@ char GCALab_fio_saveCA(char *filename,GraphCellularAutomaton *GCA,mesh *m)
 	return WRITE_SUCCESS;
 };
 
+/**
+ * @brief Write data variable to file
+ *
+ * @param filename the name of the file to save
+ * @param name the name of the variable
+ * @param data pointer to memory containing data
+ * @param N the number of data elements
+ * @param type data type of element
+ * @retVal WRITE_SUCCESS on completion.
+ * @retVal WRITE_FAILED on error.
+ */
 char GCALab_fio_saveData(char* filename,char * name, void * data, int N,unsigned char type)
 {
 	FILE* fp;
@@ -309,7 +334,11 @@ char GCALab_fio_saveData(char* filename,char * name, void * data, int N,unsigned
 	return WRITE_SUCCESS;
 }
 
-/* GCALab_fio_loadCA(): reads a *.gca file.
+/** @brief reads a *.gca file to memory.
+ *
+ * @param filename *.gca file to import
+ * @param GCA pointer to memory for storing the GCA data
+ * @param m pointer to memory for storing CA topology/geometry.
  */
 char GCALab_fio_loadCA(char* filename, GraphCellularAutomaton **GCA, mesh **m)
 {

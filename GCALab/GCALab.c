@@ -156,7 +156,11 @@ unsigned char GCALab_confedit_mode;
 char stateInitials[6] = {'I','R','P','Q','E'};
 char* statenames[6] = {"Idle","Running","Paused","Exiting","Error"};
 char cellsymbols[8] = {' ','O','*','-','x','+','#','^'};
-/* main(): entry point of the GCALab Program
+
+/**
+ * @brief entry point of the GCALab Program
+ * @param argc the number of commandline args
+ * @param argv array of commandline args
  */
 int main(int argc, char **argv)
 {
@@ -189,7 +193,9 @@ int main(int argc, char **argv)
 	pthread_exit(NULL);
 } 
 
-/* GCALab_TextMode(): starts a GCALab session in text-only mode
+/** 
+ * @brief starts a GCALab session in text-only mode
+ * @param opts User provided start up commandline args
  */
 void GCALab_TextMode(GCALab_CL_Options* opts)
 {
@@ -208,8 +214,9 @@ void GCALab_TextMode(GCALab_CL_Options* opts)
 	return;
 }
 
-/* GCALab_GraphicsMode(): Runs GCALab interactively with
- *                        OpenGL Grpahics
+/**
+ * @brief Runs GCALab interactively with OpenGL Grpahics
+ * @param opts User provided start up commandline args
  */
 void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 {
@@ -246,8 +253,9 @@ void GCALab_GraphicsMode(GCALab_CL_Options* opts)
 	return;
 }
 
-/* GCALab_BatchMode(): Runs Commands is batch mode, 
- *                     i.e., reads commands from a file
+/**
+ * @brief Runs Commands is batch mode, i.e., reads commands from a file
+ * @param opts User provided start up commandline args
  */
 char GCALab_BatchMode(GCALab_CL_Options* opts)
 {
@@ -266,8 +274,13 @@ char GCALab_BatchMode(GCALab_CL_Options* opts)
 	}
 }
 
-/* GCALab_Init(): sets up GCALab with default settings, unless
- *                overridden via start-up commands
+/**
+ * @brief sets up GCALab with default settings, unless overridden via start-up commands
+ * @details this function is also responsible for registration of extension commands
+ * @param argc number of commandline args
+ * @param argv array of commandline args
+ * @param opts Parsed commandline options (populated by this function)
+ * @returns GCALAB_SUCCESS on sucessful completion or and appropriate error code. 
  */
 char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 {
@@ -367,8 +380,12 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	return GCALAB_SUCCESS;
 }
 
-/* GCALab_Register_Command(): Registers command functions for the GCALab 
- *                            command prompt.
+/**
+ * @brief Registers command functions for the GCALab command prompt.
+ * @param id the name of the command.
+ * @param f function pointer to handle the command.
+ * @param args a human readable list of arguments.
+ * @param desc a human readable summary of the function.
  */
 void GCALab_Register_Command(char *id,char (*f)(int,char**),char * args, char * desc)
 {
@@ -382,7 +399,12 @@ void GCALab_Register_Command(char *id,char (*f)(int,char**),char * args, char * 
 	}
 }
 
-/* GCALab_Register_Operation(): Registers a compute operation
+/** 
+ * @brief Registers a compute operation
+ * @param id the name of the operation.
+ * @param f function pointer to handle the operation.
+ * @param args a human readable list of arguments.
+ * @param desc a human readable summary of the operation.
  */
 void GCALab_Register_Operation(char *id,char (*f)(unsigned char,unsigned int,int,char**,GCALabOutput**),char* args,char * desc)
 {
@@ -396,8 +418,11 @@ void GCALab_Register_Operation(char *id,char (*f)(unsigned char,unsigned int,int
 	}
 }
 
-/* GCALab_Process_Command(): Interprets the user command prompt input
- *                           as returned by GCALab_CommandPrompt()
+/**
+ * @brief Interprets the user command prompt input as returned by GCALab_CommandPrompt()
+ * @param nargs the number of arguments
+ * @param args the argument list
+ * @returns the return code of the user selected function
  */
 char GCALab_Process_Command(int nargs,char **args)
 {
@@ -435,7 +460,11 @@ char GCALab_Process_Command(int nargs,char **args)
 	return rc;
 }
 
-/* GCALab_TestPointer(): returns an error if the pointer is null
+/**
+ * @brief returns an error if the pointer is null
+ * @param ptr the pointer to test.
+ * @retVal GCALAB_SUCCESS if ptr != NULL
+ * @retVal GCALAB_MEM_ERROR if ptr == NULL
  */
 char GCALab_TestPointer(void* ptr)
 {
@@ -445,7 +474,9 @@ char GCALab_TestPointer(void* ptr)
 		return GCALAB_SUCCESS;
 }
 
-/* GCALab_ValidWSId(): tests if the given workspace id maps to a real workspace
+/**
+ * @brief tests if the given workspace id maps to a real workspace
+ * @param ws_id the current workspace id.
  */
 char GCALab_ValidWSId(unsigned int ws_id)
 {
@@ -456,8 +487,10 @@ char GCALab_ValidWSId(unsigned int ws_id)
 		return GCALAB_SUCCESS;
 }
 
-/* GCALab_HandleErr(): tests if the given returen code indicates an error,
- *                     if the error is fatal then it aborts.
+/**
+ * @brief tests if the given returen code indicates an error,if the error is fatal then it 
+ * aborts.
+ * @param rc the return code to test
  */
 void GCALab_HandleErr(char rc)
 {
@@ -492,8 +525,10 @@ void GCALab_HandleErr(char rc)
 	}
 }
 
-/* GCALab_GetCommandCode(): converts the command string into a
- *                          command id
+/**
+ * @brief converts the command string into a command id
+ * @param cmd command name to lookup the op-code of.
+ * @returns the command op-code or GCALAB_NOP if not found.
  */
 unsigned int GCALab_GetCommandCode(char* cmd)
 {
@@ -506,7 +541,9 @@ unsigned int GCALab_GetCommandCode(char* cmd)
 	return GCALAB_NOP;
 }
 
-/* GCALab_Worker(): Processing thread attached to a workspace
+/**
+ * @brief Processing thread attached to a workspace.
+ * @param params thread args, just the workspace id.
  */
 void * GCALab_Worker(void *params)
 {
@@ -556,8 +593,10 @@ void * GCALab_Worker(void *params)
 	pthread_exit((void*)((long long)error));
 }
 
-/* GCALab_CommandQueueEmpty(): evaluates to true when the Command queue for 
- *                             the given workspace is empty.
+/**
+ * @brief evaluates to true when the Command queue for the given workspace is empty.
+ * @param ws_id the workspace id to test.
+ * @returns 1 if the commandqueue is empty, 0 otherwise.
  */
 unsigned char GCALab_CommandQueueEmpty(unsigned char ws_id)
 {
@@ -568,7 +607,9 @@ unsigned char GCALab_CommandQueueEmpty(unsigned char ws_id)
 	return empty;
 }
 
-/* GCALab_DoNextCommand(): executes the next command in the given command queue.
+/**
+ * @brief executes the next command in the given command queue.
+ * @param ws_id the workspace id to process
  */
 char GCALab_DoNextCommand(unsigned char ws_id)
 {
@@ -625,7 +666,8 @@ char GCALab_DoNextCommand(unsigned char ws_id)
 	GCALab_UnLockWS(ws_id);
 	return GCALAB_SUCCESS;
 }
-/* PrintsAbout(): Prints Author and affiliation information
+/**
+ * @brief Prints Author and affiliation information
  */
 void GCALab_PrintAbout(void)
 {
@@ -641,7 +683,8 @@ void GCALab_PrintAbout(void)
 	return;
 }
 
-/* GCALab_PrintLicense(): prints user license summary
+/**
+ * @brief prints user license summary
  */
 void GCALab_PrintLicense(void)
 {
@@ -652,7 +695,8 @@ void GCALab_PrintLicense(void)
 	return;
 }
 
-/* GCALab_SplashScreen(): startup screen
+/**
+ * @brief startup screen
  */
 void GCALab_SplashScreen(void)
 {
@@ -674,7 +718,8 @@ void GCALab_SplashScreen(void)
 	return;
 }
 
-/* PrintUsage(): Prints the help menu
+/**
+ * @brief Prints the help menu
  */
 void GCALab_PrintUsage()
 {
@@ -684,8 +729,11 @@ void GCALab_PrintUsage()
 	printf("\t [-b,--batch]\n\t\t : start in batch mode\n");
 }
 
-/* GCALab_CommandPrompt(): Prompts the user to enter a command in text mode, the
- *                         users input string is then tokenised with whitespace as the delimiter.
+/**
+ * @brief Prompts the user to enter a command in text mode, 
+ * @details the users input string is then tokenised with whitespace as the delimiter.
+ * @param numargs populated with the numerb of arguments read
+ * @returns the array of arguments
  */
 char ** GCALab_CommandPrompt(int *numargs)
 {
@@ -751,8 +799,12 @@ char ** GCALab_CommandPrompt(int *numargs)
 	return argv;
 }
 
-/* GCALab_ReadScriptCommand(): Prompts the user to enter a command in text mode, the
- *                         users input string is then tokenised with whitespace as the delimiter.
+/**
+ * @brief Prompts the user to enter a command in text mode, 
+ * @details the users input string is then tokenised with whitespace as the delimiter.
+ * @param filename the name of the script file
+ * @param numargs populated with the numerb of arguments read
+ * @returns the array of arguments
  */
 char ** GCALab_ReadScriptCommand(char * filename, int *numargs)
 {
@@ -876,7 +928,9 @@ char ** GCALab_ReadScriptCommand(char * filename, int *numargs)
 	}
 }
 
-/* GCALab_InitCL_Options(): Initialises the options struct with defaults values
+/**
+ * @brief Initialises the options struct with defaults values
+ * @param opts user commandline options
  */
 void GCALab_InitCL_Options(GCALab_CL_Options* opts)
 {
@@ -887,8 +941,11 @@ void GCALab_InitCL_Options(GCALab_CL_Options* opts)
 	opts->CAOutputFilename = "";
 }
 
-/* GCALab_ParseCommandLineArgs(): parses the command line arguments and returns a struct
- *                         of user options. 
+/**
+ * @brief parses the command line arguments and returns a struct of user options.
+ * @param argc number of commandline args as proided from main
+ * @param argv the array of commandline args 
+ * @returns a options structure with fields populated as per the input args.
  */
 GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 {
@@ -958,8 +1015,10 @@ GCALab_CL_Options* GCALab_ParseCommandLineArgs(int argc, char **argv)
 	return CL_opt;	
 }
 
-/* GCALab_NewWorkSpace(): Creates a new processing workspace, the user can set the limit 
- *                        on the number of CA objects the workspace can hold.
+/**
+ * @brief Creates a new processing workspace, 
+ * @details the user can set the limit on the number of CA objects the workspace can hold.
+ * @param GCALimit the maximum number of CA that can be handled by this workspace
  */
 char GCALab_NewWorkSpace(int GCALimit)
 {
@@ -1046,22 +1105,31 @@ char GCALab_NewWorkSpace(int GCALimit)
 	}
 }
 
-/*  GCALab_LockWS(): aquire a lock on the given workspace
+/**
+ * @brief aquire a lock on the given workspace
+ * @param ws_id the workspace to lock
  */
 void GCALab_LockWS(unsigned char ws_id)
 {
 	pthread_mutex_lock(&(GCALab_Global[ws_id]->wslock));
 }
 
-/*  GCALab_UnLockWS(): release a lock on the given workspace
+/**
+ * @brief release a lock on the given workspace
+ * @parakm ws_id the workspace to unlock
  */
 void GCALab_UnLockWS(unsigned char ws_id)
 {
 	pthread_mutex_unlock(&(GCALab_Global[ws_id]->wslock));
 }
 
-/* GCALab_QueueCommand(): appends the given command string to the command queue
- *                        of the given workspace.
+/**
+ * @brief appends the given command string to the command queue of the given workspace.
+ * @param ws_id workspace to modify
+ * @param command_id the op-code of the user queued command
+ * @param target_id the location of the results in the data array
+ * @param params list of args to the user command
+ * @param nparams the number of args to teh user command
  */
 char GCALab_QueueCommand(unsigned char ws_id,unsigned int command_id,unsigned int target_id,char **params,int numparams)
 {
@@ -1083,8 +1151,12 @@ char GCALab_QueueCommand(unsigned char ws_id,unsigned int command_id,unsigned in
 	GCALab_UnLockWS(ws_id);
 	return GCALAB_SUCCESS;
 }
-/* GCALab_CancelCommand(): cancels the the command located at address index of 
- *                         the command queue of the given workspace.
+
+/**
+ * @brief cancels the the command located at address index of the command 
+ * queue of the given workspace.
+ * @param ws_id the workspace we are modifying
+ * @param index the index of the command in the queue
  */
 char GCALab_CancelCommand(unsigned char ws_id,unsigned int index)
 {
@@ -1106,7 +1178,9 @@ char GCALab_CancelCommand(unsigned char ws_id,unsigned int index)
 	return GCALAB_SUCCESS;
 }
 
-/* GCALab_ProcessCommandQueue(): Tells workspace to continue processing
+/**
+ * @brief Tells workspace to continue processing
+ * @param ws_id the workspace to modify
  */
 char GCALab_ProcessCommandQueue(unsigned char ws_id)
 {
@@ -1116,7 +1190,9 @@ char GCALab_ProcessCommandQueue(unsigned char ws_id)
 	return GCALAB_SUCCESS;
 }
 
-/* GCALab_PrauseCommandQueue(): Tells workspace to halt processing
+/**
+ * @brief Tells workspace to halt processing
+ * @param ws_id the workspace to modify
  */
 char GCALab_PauseCommandQueue(unsigned char ws_id)
 {
@@ -1126,7 +1202,9 @@ char GCALab_PauseCommandQueue(unsigned char ws_id)
 	return GCALAB_SUCCESS;
 }
 
-/* GCALab_PrintCommandQueue(): Tells workspace print all queued commands
+/**
+ * @brief Tells workspace print all queued commands
+ * @param ws_id the workspace to modify
  */
 char GCALab_PrintCommandQueue(unsigned char ws_id)
 {
@@ -1145,7 +1223,10 @@ char GCALab_PrintCommandQueue(unsigned char ws_id)
 	return GCALAB_SUCCESS;
 }
 
-/* GCALab_GetState(): gets the state flag of a workspace
+/**
+ * @brief gets the state flag of a workspace
+ * @param ws_id the workspace to modify
+ * @returns the state of the workspace
  */
 unsigned int GCALab_GetState(unsigned char ws_id)
 {
@@ -1156,7 +1237,10 @@ unsigned int GCALab_GetState(unsigned char ws_id)
  	return state;
 }
 
-/* GCALab_SetState(): sets the state flag of a workspace safely
+/**
+ * @brief sets the state flag of a workspace safely
+ * @param ws_id the workspace to modify
+ * @param state the new state of the workspace
  */
 void GCALab_SetState(unsigned char ws_id,unsigned int state)
 {
@@ -1166,7 +1250,10 @@ void GCALab_SetState(unsigned char ws_id,unsigned int state)
 	return;
 }
 
-/* GCALab_ShutDown(): Nicely and humainly kills the session
+/**
+ * @brief Nicely and humainly kills the session
+ * @param rc return code
+ * @note no real cellular automata where wounded in this process :)
  */
 void GCALab_ShutDown(char rc)
 {
@@ -1197,7 +1284,8 @@ void GCALab_ShutDown(char rc)
 	exit(0);
 }
 
-/* GCALab_PrintHelp(): Prints the help menu
+/**
+ * @brief Prints the help menu
  */
 void GCALab_PrintHelp(void)
 {
@@ -1214,7 +1302,8 @@ void GCALab_PrintHelp(void)
 	return;
 }
 
-/* GCALab_PrintOperations(): Print list of queuable compute functions
+/**
+ * @brief Print list of queuable compute functions
  */
 void GCALab_PrintOperations(void)
 {
@@ -1230,8 +1319,9 @@ void GCALab_PrintOperations(void)
 	return;
 }
 
-/* GCALab_PrintWorkSpace(): prints summart information about the 
- *                          given workspace.
+/**
+ * @brief prints summart information about the given workspace.
+ * @param ws_id the workspace to print
  */
 char GCALab_PrintWorkSpace(unsigned char ws_id)
 {
