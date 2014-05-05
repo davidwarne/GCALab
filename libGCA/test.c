@@ -172,7 +172,7 @@ void testGoE(int argc,char** argv)
 		// for every config, test GoE
 		//ECA = CreateECA(N,k,r,12);
 		m = CreateMeshTopology(N,0);
-		ECA = CreateGCA(CreateCAParams(m,2,CODE_RULE_TYPE,22,12));
+		ECA = CreateGCA(CreateCAParams(VON_NEUMANN_NEIGHBOURHOOD_TYPE,m,2,CODE_RULE_TYPE,22,12));
 		for (i=0;i<samples2;i++)
 		{	
 			chunk ic = (chunk) i;
@@ -822,7 +822,7 @@ int benchmarkRevAlg(int argc,char **argv)
 			//ECA = CreateECA(i,3,r,1200);
 			mesh *m;
 			m = CreateMeshTopology(i,0);
-			ECA = CreateGCA(CreateCAParams(m,2,CODE_RULE_TYPE,r,12));
+			ECA = CreateGCA(CreateCAParams(VON_NEUMANN_NEIGHBOURHOOD_TYPE,m,2,CODE_RULE_TYPE,r,12));
 			SetCAIC(ECA,NULL,NOISE_IC_TYPE);
 			tic = clock();
 			g = IsGOE(ECA);

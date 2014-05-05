@@ -1,24 +1,47 @@
 #!/bin/make
 
+NAME = GCA
+TARGET = lib$(NAME)
+STATIC = $(TARGET).a
+SHARED = $(TARGET).so
+
+# compiler options
 CC = gcc
-OPTS = -O2
+OPTS = -O2 -fPIC -DNO_THREADS
 #OPTS = -g
-SRC =  test.c GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c
+
+#archive options
+AR = ar
+AROPTS = -rcvs
+
+SRC =  GCA.c
 OBJS = $(SRC:.c=.o)
-INC = -I../libMesh/ -I./
+TESTSRC = test.c
+INC = -I ../libMesh 
 BIN = Test
-LIBS = -lm -lpthread 
+LIBS = -lm -L ../libMesh -lmesh 
 #PROFILE = -g -pg
 
 
 .SUFFIXES: .c .o
 
+all:
+	make $(STATIC)
+	make $(SHARED)
+	make $(BIN)
+
+$(STATIC): $(OBJS)
+	$(AR) $(AROPTS) $@ $?
+
+$(SHARED): $(OBJS)
+	$(CC) -shared -o $@ $? $(LIBS)
+
 .c.o:
 	$(CC) $(OPTS) $(PROFILE) -c $< -o $@ $(INC) 
 
 $(BIN): $(OBJS)
-	$(CC) $(OPTS) $(PROFILE)  $(OBJS) -o $(BIN) $(LIBS) 
+	$(CC) $(OPTS) $(PROFILE)  $(OBJS) $(TESTSRC)  -o $(BIN) $(LIBS) $(INC) 
 	@echo Binary created!!
 
 clean:
-	set nonomatch; rm -f $(BIN) *.o
+	set nonomatch; rm -f $(BIN) $(OBJS) $(SHARED) $(STATIC)

@@ -4,11 +4,11 @@ CC = gcc
 OPTS = -O2 -DWITH_GRAPHICS
 #OPTS = -g -DWITH_GRAPHICS 
 #OPTS = -g
-SRC =  GCALab.c GCALab_fio.c ../libGCA/GCA.c ../libMesh/mesh.c ../libMesh/vectorMath.c ../libBitMap/BitMapFile.c ../libBitMap/BitMapWriter.c
+SRC =  GCALab.c GCALab_fio.c 
 OBJS = $(SRC:.c=.o)
 INC = -I../libMesh/ -I../libGCA/ -I ../libBitMap -I./ 
 BIN = GCALab
-LIBS = -lm -lpthread -lg -lglut -lGL -lGLU
+LIBS = -lm -lpthread -lg -lglut -lGL -lGLU -L../libBitMap -lbitmap -L../libMesh -lmesh -L../libGCA -lGCA
 #PROFILE = -g -pg
 
 
