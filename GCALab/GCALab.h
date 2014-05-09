@@ -26,6 +26,18 @@
  * Last Modified: 18/01/2013
  *
  */
+/**
+ * @file GCALab.h
+ *
+ * @brief
+ * @details
+ * 
+ * @author
+ *
+ * @version
+ * @date
+ * @copyright
+ */
 
 #ifndef __GCALAB_H
 #define __GCALAB_H

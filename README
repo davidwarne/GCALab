@@ -11,8 +11,18 @@ Installation:
 -------------
 	Linux:
 	- easy for linux users just run make
-
 		$ make
+    - Generate documentation (requires doxygen)
+        $ make docs
+
+    - If you are dynamically linking (the default in this project)
+      you will need to add the libBitMap,libMesh and libGCA directorys to
+      your LD_LIBRARY_PATH evironment variable. For example,
+        $ export LD_LIBRARY_PATH=/path/to/GCALab/libMesh:/path/to/GCALab/libGCA:/path/to/GCALab/libBitMap:$LD_LIBRARY_PATH
+      
+      You can add these lines to your .bashrc or .bash_profile to avoid the 
+      need to run this every time you login
+
 
 	Windows:
 	- c'mon, just install linux
@@ -20,13 +30,17 @@ Installation:
 
 Files:
 ------
-	GCA/
+	GCALab/
 		GCALab/
+        libBitMap/
 		libGCA/
 		libMesh/
 
-Known Issues:
+Dependencies:
 ------------
+    OpenGL/GLU
+    freeglut
+    pthreads
 
 Author Information:
 -------------------
@@ -34,6 +48,11 @@ Author Information:
 	Email - david.warne@qut.edu.au
 	Uni - The Queensland University of Technology, Brisbane, Australia
 	School - The School of Electrical Engineering and Computer Science
+
+Publications:
+    D. J. Warne, R. F. Hayward, N. A. Kelson, and D. G. Mallet, "An Efficient 
+    Algorithm for the Detection of Eden," Complex Systems, vol. 22, no. 4, 
+    pp. 376--404, December 2013.
 
 Acknowledgements:
 -----------------
