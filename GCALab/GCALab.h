@@ -307,6 +307,7 @@ char GCALab_OP_Load(unsigned char ws_id,unsigned int trgt,int argc, char ** argv
 char GCALab_OP_Save(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Simulate(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
+char GCALab_OP_Rotate(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Param(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);
 char GCALab_OP_Reverse(unsigned char ws_id,unsigned int trgt,int argc, char ** argv,GCALabOutput **res);

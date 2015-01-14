@@ -211,6 +211,7 @@ void SetCellStatePacked(GraphCellularAutomaton *GCA, unsigned int i,state s);
 state GetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsigned int i);
 void SetCellStatePacked_external(GraphCellularAutomaton *GCA,chunk* config, unsigned int i,state s);
 unsigned int* GetNeighbourhood(GraphCellularAutomaton * GCA,unsigned int i);
+void RotateNeighbourhood(GraphCellularAutomaton * GCA, unsigned int i, unsigned int r);
 unsigned int GetNeighbourhood_config(GraphCellularAutomaton * GCA,unsigned int i,unsigned int t);
 unsigned int GetNeighbourhood_config_external(GraphCellularAutomaton * GCA,chunk* config,unsigned int i);
 

@@ -868,6 +868,37 @@ unsigned int* GetNeighbourhood(GraphCellularAutomaton * GCA,unsigned int i)
 }
 
 /**
+ * @brief Rotates the local neighbourhood of the \a ith cell by \a r steps.
+ * 
+ * @details This rotation will not affect the graph topology by will affect the 
+ * orientation of the cell's local state transition function.
+ *
+ * @param GCA a Graph Cellular Automaton
+ * @param i the index of the cell 
+ * @param r the number of steps to rotate the neighbourhood by
+ *
+ * @note Totalistic and outer-totalistic rules will nto be affected by this operation.
+ */
+void RotateNeighbourhood(GraphCellularAutomaton * GCA, unsigned int i, unsigned int r)
+{
+    /*At the moment just prints the neighbourhood*/
+    unsigned int j,k;
+    unsigned int *U_i;
+    U_i = GCA->params->graph + i*(GCA->params->k-1);
+    r = r%(GCA->params->k-1);
+    for (j=0;j<r;j++)
+    {
+        unsigned int tmp;
+        tmp = U_i[0];
+        for (k=1;k<(GCA->params->k-1);k++)
+        {
+            U_i[k-1] = U_i[k];
+        }
+        U_i[GCA->params->k-2] = tmp;
+    }
+}
+
+/**
  * @brief Gets configuration of the neighbourhood of the \a ith cell for the given
  * configuration.
  *

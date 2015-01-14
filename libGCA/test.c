@@ -801,6 +801,19 @@ int testAttrCycles(int argc, char ** argv)
 	}
 }
 
+int printNH(int argc,char ** argv)
+{
+    int i;
+    GraphCellularAutomaton *GCA;
+    mesh *m;
+    m = CreateMeshTopology(i,0);
+    GCA = CreateGCA(CreateCAParams(VON_NEUMANN_NEIGHBOURHOOD_TYPE,m,2,CODE_RULE_TYPE,7710,12));
+    for (i=0;i<GCA->params->N;i++)
+    {
+        RotateNeighbourhood(GCA,i,atoi(argv[1]));
+    }
+}
+
 int benchmarkRevAlg(int argc,char **argv)
 {
 	GraphCellularAutomaton *ECA;
@@ -861,5 +874,6 @@ int main(int argc, char** argv)
 	/*testSE(argc,argv);*/
 	/*testAttrCycles(argc,argv);*/
 //	benchmarkRevAlg(argc,argv);
-	testGoE(argc,argv);
+//	testGoE(argc,argv);
+    printNH(argc,argv);
 }

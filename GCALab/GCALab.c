@@ -362,6 +362,9 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
 	args = "i (((-m meshfile | -t numcells genus) -s numstates -r (code | totalistic | thresh | life ) rulecode) | -eca numCells numNeighbours rulecode) [-c (random | point | checker | stripe)] [-w windowsize] [-nh (neumann | moore)]";
 	desc = "Creates a new graph cellular automaton in the current workspace";
 	GCALab_Register_Operation("gca",&GCALab_OP_GCA,args,desc);
+    args = "i [-p prob]";
+    desc = "Rotate neighbourhoods with probability p";
+	GCALab_Register_Operation("rotate",&GCALab_OP_Rotate,args,desc);
 	args = "i -n numsamples -t timesteps -e entropytype";
 	desc = "Computes entropy measures of graph cellular automaton at i";
 	GCALab_Register_Operation("entropy",&GCALab_OP_Entropy,args,desc);
@@ -2583,6 +2586,38 @@ char GCALab_OP_GCA(unsigned char ws_id,unsigned int trgt_id,int nparams, char **
 	return GCALAB_SUCCESS;
 }
 
+/* GCALab_OP_Rotate(): rotate cell neighbourhoods at random
+ */
+char GCALab_OP_Rotate(unsigned char ws_id,unsigned int trgt_id, int nparams, char ** params, GCALabOutput **res)
+{
+    int i;
+    float p;
+    GraphCellularAutomaton *GCA;
+    p = 0.5;
+	/*Grab a reference to the CA we want to play with*/
+	GCA = WS(ws_id)->GCAList[trgt_id];
+    for (i=0;i<nparams;i++)
+    {
+        if (!strcmp(params[i],"-p"))
+        {
+            p = (float)atof(params[++i]);
+        }
+        else 
+        {
+            return GCALAB_INVALID_OPTION;
+        }
+    }
+
+    for (i=0;i<GCA->params->N;i++)
+    {
+        if (((float)rand())/((float)RAND_MAX) > p)
+        {
+            RotateNeighbourhood(GCA,i,rand());
+        }
+    }
+	
+    return GCALAB_SUCCESS;
+}
 /* GCALab_OP_Entropy(): compute entropy meansures on a given CA
  */
 char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, char ** params,GCALabOutput **res)
