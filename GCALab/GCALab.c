@@ -117,9 +117,9 @@
  *
  *==============================================================================
  */
-#define GCALAB_VERSION 0.19
+#define GCALAB_VERSION 0.2
 #define GCALAB_AUTHOR "David J. Warne"
-#define GCALAB_CW_YEAR 2013
+#define GCALAB_CW_YEAR 2015
 #include "GCALab.h"
 #ifdef __linux__
 /*global array of workspace addresses*/
@@ -365,7 +365,7 @@ char GCALab_Init(int argc,char **argv,GCALab_CL_Options **opts)
     args = "i [-p prob]";
     desc = "Rotate neighbourhoods with probability p";
 	GCALab_Register_Operation("rotate",&GCALab_OP_Rotate,args,desc);
-	args = "i -n numsamples -t timesteps -e entropytype";
+	args = "i -n numsamples -t timesteps -e entropytype -p";
 	desc = "Computes entropy measures of graph cellular automaton at i";
 	GCALab_Register_Operation("entropy",&GCALab_OP_Entropy,args,desc);
 	args = "i -p paramtype [-l config0 configN | -n numSamples -t maxT]";
@@ -2625,7 +2625,8 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 	unsigned int numSamples;
 	unsigned int T;
 	unsigned type;
-	int i;
+    unsigned int rotate;
+	int i,j;
 	char rc;
 	GraphCellularAutomaton *GCA;
 	
@@ -2636,6 +2637,7 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 	float S_mu,W_mu,I_mu,I_sigma;
 	float *result_data;
 	numSamples = 1;
+    rotate = 0;
 	type = GCALAB_SHANNON_ENTROPY;
 	for (i=0;i<nparams;i++)
 	{
@@ -2647,6 +2649,10 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 		{
 			T = (unsigned int)atoi(params[++i]);
 		}
+        else if (!strcmp(params[i],"-p"))
+        {
+            rotate = 1;
+        }
 		else if(!strcmp(params[i],"-e"))
 		{
 			char * typestr = params[++i];
@@ -2714,13 +2720,29 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 			
 			/*compute avg Shannon entropy*/
 			S_mu = 0.0;
-			for (i=0;i<numSamples;i++)
-			{
-				ResetCA(GCA);
-				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
-				S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
-			}
-
+            if (rotate)
+            {
+                for (i=0;i<numSamples;i++)
+                {
+                    for (j=0;j<GCA->params->N;j++)
+                    {
+                        RotateNeighbourhood(GCA,j,rand());
+                    }
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			    	S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
+            
+                }
+            }
+            else
+            {
+		        for (i=0;i<numSamples;i++)
+			    {
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			    	S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
+			    }
+            }
 			S_mu = S_mu/((float)numSamples);
 			/*store outputs*/
 			(*res)->type = FLOAT32;
@@ -2778,12 +2800,28 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 
 			/*compute avg word entropy*/
 			W_mu = 0.0;
-			for (i=0;i<numSamples;i++)
-			{
-				ResetCA(GCA);
-				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
-			    W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
-			}
+            if (rotate)
+            {
+			    for (i=0;i<numSamples;i++)
+			    {
+                    for (j=0;j<GCA->params->N;j++)
+                    {
+                        RotateNeighbourhood(GCA,j,rand());
+                    }
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			        W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
+			    }
+            }
+            else
+            {
+			    for (i=0;i<numSamples;i++)
+			    {
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			        W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
+			    }
+            }
 
 			W_mu = W_mu/((float)numSamples);
 				
@@ -2825,7 +2863,14 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 			}
 
 			/*compute avg and varience of I*/
-			ResetCA(GCA);
+            if (rotate)
+            {
+                for (j=0;j<GCA->params->N;j++)
+                {
+                    RotateNeighbourhood(GCA,j,rand());
+                }
+			}
+            ResetCA(GCA);
 			SetCAIC(GCA,NULL,NOISE_IC_TYPE);
 			InputEntropy(GCA,T,&I_mu,&I_sigma,Q,logQ,IE);	
 			/*store outputs*/
@@ -2922,28 +2967,65 @@ char GCALab_OP_Entropy(unsigned char ws_id,unsigned int trgt_id,int nparams, cha
 			
 			/*compute avg Shannon entropy*/
 			S_mu = 0.0;
-			for (i=0;i<numSamples;i++)
-			{
-				ResetCA(GCA);
-				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
-				S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
-			}
-
+            if (rotate)
+            {
+                for (i=0;i<numSamples;i++)
+                {
+                    for (j=0;j<GCA->params->N;j++)
+                    {
+                        RotateNeighbourhood(GCA,j,rand());
+                    }
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			    	S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
+            
+                }
+            }
+            else
+            {
+		        for (i=0;i<numSamples;i++)
+			    {
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			    	S_mu += ShannonEntropy(GCA,T,p,logs_p,S_i,flags,count);
+			    }
+            }
 			S_mu = S_mu/((float)numSamples);
 					
 			/*compute avg word entropy*/
-			W_mu = 0.0;
-			for (i=0;i<numSamples;i++)
-			{
-				ResetCA(GCA);
-				SetCAIC(GCA,NULL,NOISE_IC_TYPE);
-				W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
-			}
-
+            if (rotate)
+            {
+			    for (i=0;i<numSamples;i++)
+			    {
+                    for (j=0;j<GCA->params->N;j++)
+                    {
+                        RotateNeighbourhood(GCA,j,rand());
+                    }
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			        W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
+			    }
+            }
+            else
+            {
+			    for (i=0;i<numSamples;i++)
+			    {
+			    	ResetCA(GCA);
+			    	SetCAIC(GCA,NULL,NOISE_IC_TYPE);
+			        W_mu += WordEntropy(GCA,T,pt,logs_pt,S_i,flags,countt,wl);
+			    }
+            }
 			W_mu = W_mu/((float)numSamples);
 					
 			/*compute avg and varience of I*/
-			ResetCA(GCA);
+            if (rotate)
+            {
+                for (j=0;j<GCA->params->N;j++)
+                {
+                    RotateNeighbourhood(GCA,j,rand());
+                }
+			}
+            ResetCA(GCA);
 			SetCAIC(GCA,NULL,NOISE_IC_TYPE);
 			InputEntropy(GCA,T,&I_mu,&I_sigma,Q,logQ,IE);	
 			/*store outputs*/
